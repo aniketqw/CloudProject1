@@ -5,6 +5,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app
 COPY common/ ./common/
 COPY deploy/*.py ./deploy/
+COPY deploy/profiles.json ./deploy/profiles.json
 COPY customer_service/*.py ./customer_service/
 COPY order_service/*.py ./order_service/
 COPY task_scheduler/*.py ./task_scheduler/

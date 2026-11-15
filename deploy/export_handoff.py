@@ -5,21 +5,23 @@ from pathlib import Path
 import re
 import zipfile
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE_DIRS={"common","customer_service","order_service","task_scheduler","payment_service","kitchen_workflow","delivery_assignment_service","notification_service","restaurant_service","web_ui","local","tests","deploy","functions","observability","load","docs"}
+SOURCE_DIRS={"common","customer_service","order_service","task_scheduler","payment_service","kitchen_workflow","delivery_assignment_service","notification_service","restaurant_service","web_ui","local","tests","deploy","functions","observability","load"}
 EXTENSIONS={".py",".js",".mjs",".json",".yaml",".yml",".html",".css",".svg",".proto",".java",".xml",".properties",".md",".hcl",".conf"}
-ROOT_FILES={"requirements.txt","compose.yaml","compose.assignment.yaml","Dockerfile.local","Dockerfile.local.dockerignore",".env.local.example",".env.assignment.example",".gitignore"}
+ROOT_FILES={"requirements.txt","compose.yaml","compose.assignment.yaml","Dockerfile.local","Dockerfile.local.dockerignore",".env.local.example",".env.assignment.example",".env.example",".env.kafka.example",".gitignore","CLOUD_DEPLOYMENT_HANDOFF.md"}
 def candidates():
     for path in sorted(ROOT.rglob("*")):
         if not path.is_file() or path.is_symlink():continue
         relative=path.relative_to(ROOT);parts=relative.parts
         if any(part in {".git",".local-build",".terraform","__pycache__","venv",".venv","target","node_modules","team"} for part in parts):continue
         if len(parts)==1:
-            if path.name in ROOT_FILES or path.suffix==".md":yield path
+            if path.name in ROOT_FILES:yield path
             continue
         if parts[0] not in SOURCE_DIRS:continue
         if path.name=="config.team.json" or "tfstate" in path.name.lower() or ".tfvars" in path.name.lower() or "backend.hcl"==path.name:continue
         if path.name.startswith(".env"):continue
-        if path.name.startswith("Dockerfile") and parts[0] not in {"functions"} and parts[:2]!=("restaurant_service","analytics"):continue
+        if path.suffix == ".md":continue
+        if re.search(r"(?i)(?:secrets?.*\.json|.*(?:credentials|service[-_]?account).*\.(?:json|yaml|yml))$", path.name):continue
+        if path.name.startswith("Dockerfile") and parts[0] not in {"functions"} and parts[:2]!=("restaurant_service","analytics") and relative.as_posix() not in {"delivery_assignment_service/Dockerfile", "delivery_assignment_service/Dockerfile.dockerignore"}:continue
         if path.suffix in EXTENSIONS or path.name.startswith("Dockerfile") or path.name in {".dockerignore","requirements.txt","Chart.lock"} or (parts[:3]==("deploy","charts","platform") and path.suffix==".tgz"):
             # Legacy deployment files are superseded by deploy/, never exported.
             if path.suffix==".tf" or (parts[0] in {"customer_service","order_service","restaurant_service","delivery_assignment_service"} and path.suffix in {".yaml",".yml"}):continue
@@ -36,7 +38,7 @@ def known_private_values():
 def verify(files,known=()):
     for relative,data in files:
         if any(value in data for value in known):raise ValueError("Known exposed credential match: "+relative)
-        if (b"-----BEGIN "+b"PRIVATE KEY-----") in data or (b"-----BEGIN "+b"RSA PRIVATE KEY-----") in data:raise ValueError("Private key material: "+relative)
+        if re.search(rb"-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----", data):raise ValueError("Private key material: "+relative)
         if re.search(rb"AIza[A-Za-z0-9_-]{35}",data):raise ValueError("Google API key pattern: "+relative)
         if "secrets.auto.tfvars" in relative or ".git/" in relative or "tfstate" in relative or "config.team.json" in relative:raise ValueError("Private path: "+relative)
 def main():

@@ -14,6 +14,7 @@ metadata: {name: zookeeper, annotations: {argocd.argoproj.io/sync-wave: "0"}}
 spec:
   serviceName: zookeeper
   replicas: 3
+  persistentVolumeClaimRetentionPolicy: {whenDeleted: Retain, whenScaled: Retain}
   podManagementPolicy: Parallel
   selector: {matchLabels: {app: zookeeper}}
   template:

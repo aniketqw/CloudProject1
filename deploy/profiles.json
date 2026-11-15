@@ -1,0 +1,66 @@
+{
+  "demo": {
+    "gke_machine": "e2-standard-2",
+    "gke_nodes": 2,
+    "gke_max_nodes": 2,
+    "gke_disk_gb": 30,
+    "flink_machine": "e2-standard-2",
+    "flink_workers": 0,
+    "flink_disk_gb": 30,
+    "sql_tier": "db-g1-small",
+    "sql_max_connections": 50,
+    "resources": {
+      "requests": {
+        "cpu": "50m",
+        "memory": "128Mi"
+      },
+      "limits": {
+        "cpu": "500m",
+        "memory": "512Mi"
+      }
+    },
+    "sql_proxy_resources": {
+      "requests": {
+        "cpu": "25m",
+        "memory": "32Mi"
+      },
+      "limits": {
+        "cpu": "250m",
+        "memory": "128Mi"
+      }
+    },
+    "kafka_retention_days": 21
+  },
+  "standard": {
+    "gke_machine": "e2-standard-4",
+    "gke_nodes": 2,
+    "gke_max_nodes": 4,
+    "gke_disk_gb": 40,
+    "flink_machine": "e2-standard-4",
+    "flink_workers": 2,
+    "flink_disk_gb": 40,
+    "sql_tier": "db-custom-1-3840",
+    "sql_max_connections": 500,
+    "resources": {
+      "requests": {
+        "cpu": "100m",
+        "memory": "192Mi"
+      },
+      "limits": {
+        "cpu": "1000m",
+        "memory": "512Mi"
+      }
+    },
+    "sql_proxy_resources": {
+      "requests": {
+        "cpu": "50m",
+        "memory": "64Mi"
+      },
+      "limits": {
+        "cpu": "500m",
+        "memory": "256Mi"
+      }
+    },
+    "kafka_retention_days": 21
+  }
+}

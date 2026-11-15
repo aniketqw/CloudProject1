@@ -340,5 +340,16 @@
       "HOLD": "8m",
       "PAUSE": "0.1"
     }
+  },
+  "computeProfile": "demo",
+  "sqlProxyResources": {
+    "requests": {
+      "cpu": "25m",
+      "memory": "32Mi"
+    },
+    "limits": {
+      "cpu": "250m",
+      "memory": "128Mi"
+    }
   }
 }

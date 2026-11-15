@@ -36,4 +36,5 @@
 
 !deploy/
 !deploy/*.py
+!deploy/profiles.json
 !restaurant_service/*.proto

@@ -66,12 +66,20 @@
     "create_firestore": {
       "type": "bool",
       "default": true
+    },
+    "compute_profile": {
+      "type": "string",
+      "default": "demo",
+      "validation": {
+        "condition": "${contains([\"demo\", \"standard\"], var.compute_profile)}",
+        "error_message": "Select demo or explicitly opt in to standard capacity."
+      }
     }
   },
   "resource": {
     "google_project_service": {
       "apis": {
-        "for_each": "${toset([\"compute.googleapis.com\",\"container.googleapis.com\",\"sqladmin.googleapis.com\",\"servicenetworking.googleapis.com\",\"firestore.googleapis.com\",\"storage.googleapis.com\",\"pubsub.googleapis.com\",\"cloudfunctions.googleapis.com\",\"run.googleapis.com\",\"eventarc.googleapis.com\",\"cloudbuild.googleapis.com\",\"artifactregistry.googleapis.com\",\"secretmanager.googleapis.com\",\"dataproc.googleapis.com\",\"logging.googleapis.com\",\"monitoring.googleapis.com\",\"iamcredentials.googleapis.com\",\"dns.googleapis.com\"])}",
+        "for_each": "${toset([\"compute.googleapis.com\",\"container.googleapis.com\",\"sqladmin.googleapis.com\",\"servicenetworking.googleapis.com\",\"firestore.googleapis.com\",\"storage.googleapis.com\",\"pubsub.googleapis.com\",\"cloudfunctions.googleapis.com\",\"run.googleapis.com\",\"eventarc.googleapis.com\",\"cloudbuild.googleapis.com\",\"artifactregistry.googleapis.com\",\"secretmanager.googleapis.com\",\"dataproc.googleapis.com\",\"logging.googleapis.com\",\"monitoring.googleapis.com\",\"iamcredentials.googleapis.com\",\"dns.googleapis.com\",\"iap.googleapis.com\",\"oslogin.googleapis.com\"])}",
         "service": "${each.value}",
         "disable_on_destroy": false
       }
@@ -348,25 +356,31 @@
         "name": "apps",
         "location": "${var.zone}",
         "cluster": "${google_container_cluster.gke.name}",
-        "initial_node_count": 2,
+        "initial_node_count": "${local.capacity.gke_nodes}",
         "autoscaling": {
-          "min_node_count": 2,
-          "max_node_count": 4
+          "min_node_count": "${local.capacity.gke_nodes}",
+          "max_node_count": "${local.capacity.gke_max_nodes}"
         },
         "node_config": {
-          "machine_type": "e2-standard-4",
-          "disk_size_gb": 40,
+          "machine_type": "${local.capacity.gke_machine}",
+          "disk_size_gb": "${local.capacity.gke_disk_gb}",
           "service_account": "${google_service_account.identities[\"node\"].email}",
           "oauth_scopes": [
             "https://www.googleapis.com/auth/cloud-platform"
           ],
           "workload_metadata_config": {
             "mode": "GKE_METADATA"
-          }
+          },
+          "disk_type": "pd-standard"
         },
         "management": {
           "auto_repair": true,
           "auto_upgrade": true
+        },
+        "lifecycle": {
+          "ignore_changes": [
+            "initial_node_count"
+          ]
         }
       }
     },
@@ -383,7 +397,7 @@
         "database_version": "MYSQL_8_0",
         "deletion_protection": true,
         "settings": {
-          "tier": "db-custom-1-3840",
+          "tier": "${local.capacity.sql_tier}",
           "availability_type": "ZONAL",
           "disk_size": 10,
           "disk_autoresize": true,
@@ -398,13 +412,20 @@
           "database_flags": [
             {
               "name": "max_connections",
-              "value": "500"
+              "value": "${tostring(local.capacity.sql_max_connections)}"
             }
-          ]
+          ],
+          "activation_policy": "ALWAYS",
+          "edition": "ENTERPRISE"
         },
         "depends_on": [
           "google_service_networking_connection.private"
-        ]
+        ],
+        "lifecycle": {
+          "ignore_changes": [
+            "settings[0].activation_policy"
+          ]
+        }
       }
     },
     "google_sql_database": {
@@ -522,6 +543,15 @@
         "bucket": "${google_storage_bucket.artifacts.name}",
         "role": "roles/storage.objectViewer",
         "member": "serviceAccount:${google_service_account.identities[\"build\"].email}"
+      },
+      "launcher_control": {
+        "bucket": "${google_storage_bucket.checkpoints.name}",
+        "role": "roles/storage.objectViewer",
+        "member": "serviceAccount:${google_service_account.identities[\"launcher\"].email}",
+        "condition": {
+          "title": "ReadAnalyticsControlOnly",
+          "expression": "resource.name == \"projects/_/buckets/${google_storage_bucket.checkpoints.name}/objects/lifecycle/analytics.json\""
+        }
       }
     },
     "google_secret_manager_secret": {
@@ -680,6 +710,24 @@
             "protocol": "icmp"
           }
         ]
+      },
+      "dataproc_iap": {
+        "name": "${var.prefix}-dataproc-iap",
+        "network": "${google_compute_network.vpc.id}",
+        "source_ranges": [
+          "35.235.240.0/20"
+        ],
+        "target_tags": [
+          "${var.prefix}-dataproc"
+        ],
+        "allow": [
+          {
+            "protocol": "tcp",
+            "ports": [
+              "22"
+            ]
+          }
+        ]
       }
     },
     "google_dataproc_cluster": {
@@ -700,20 +748,25 @@
             ],
             "tags": [
               "${var.prefix}-dataproc"
-            ]
+            ],
+            "metadata": {
+              "enable-oslogin": "TRUE"
+            }
           },
           "master_config": {
             "num_instances": 1,
-            "machine_type": "e2-standard-4",
+            "machine_type": "${local.capacity.flink_machine}",
             "disk_config": {
-              "boot_disk_size_gb": 40
+              "boot_disk_size_gb": "${local.capacity.flink_disk_gb}",
+              "boot_disk_type": "pd-standard"
             }
           },
           "worker_config": {
-            "num_instances": 2,
-            "machine_type": "e2-standard-4",
+            "num_instances": "${local.capacity.flink_workers}",
+            "machine_type": "${local.capacity.flink_machine}",
             "disk_config": {
-              "boot_disk_size_gb": 40
+              "boot_disk_size_gb": "${local.capacity.flink_disk_gb}",
+              "boot_disk_type": "pd-standard"
             }
           },
           "software_config": {
@@ -724,7 +777,13 @@
             "override_properties": {
               "dataproc:dataproc.logging.stackdriver.enable": "true",
               "dataproc:dataproc.monitoring.stackdriver.enable": "true",
-              "dataproc:jobs.file-backed-output.enable": "true"
+              "dataproc:jobs.file-backed-output.enable": "true",
+              "dataproc:dataproc.allow.zero.workers": "${local.capacity.flink_workers == 0 ? \"true\" : \"false\"}",
+              "flink:jobmanager.memory.process.size": "1024m",
+              "flink:taskmanager.memory.process.size": "2048m",
+              "flink:taskmanager.numberOfTaskSlots": "1",
+              "yarn:yarn.nodemanager.resource.memory-mb": "${var.compute_profile == \"demo\" ? \"4096\" : \"8192\"}",
+              "yarn:yarn.scheduler.maximum-allocation-mb": "${var.compute_profile == \"demo\" ? \"4096\" : \"8192\"}"
             }
           }
         },
@@ -822,6 +881,8 @@
       "db-password": "${random_password.database.result}",
       "kafka": "${jsonencode({api_key=var.kafka_api_key,api_secret=var.kafka_api_secret})}",
       "web-access": "${jsonencode({username=var.operator_user,password_hash=var.operator_password_hash})}"
-    }
+    },
+    "profiles": "${jsondecode(file(\"${path.module}/../../profiles.json\"))}",
+    "capacity": "${local.profiles[var.compute_profile]}"
   }
 }

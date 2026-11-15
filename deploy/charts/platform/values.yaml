@@ -19,6 +19,7 @@ kube-prometheus-stack:
     sidecar:
       dashboards: {enabled: true, searchNamespace: ALL}
     service: {type: ClusterIP}
+    resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {cpu: 500m, memory: 768Mi}}
     persistence: {enabled: true, size: 2Gi}
   prometheus:
     prometheusSpec:

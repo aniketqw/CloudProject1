@@ -1,3 +1,4 @@
+from common.database_options import engine_options
 from common.deployment import require_profile
 """Independent scheduler SQL session; shared Order tables are read through Core."""
 from flask import Flask
@@ -17,6 +18,7 @@ def create_storage_app(config=None):
     if not app.testing:require_profile(app.config["APP_ENV"])
     if not app.config.get("SQLALCHEMY_DATABASE_URI"):
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url()
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options(app.config["SQLALCHEMY_DATABASE_URI"], app.config.get("SQLALCHEMY_ENGINE_OPTIONS"))
     db.init_app(app)
     if app.config["AUTO_CREATE_SCHEMA"]:
         with app.app_context():

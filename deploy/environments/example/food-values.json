@@ -38,7 +38,13 @@
     "NOTIFICATION_TRANSPORT": "function",
     "NOTIFICATION_RECEIPTS_BUCKET": "replace-project-id-food-receipts",
     "NOTIFICATION_DISPATCH_TOPIC": "food-notification-dispatch",
-    "WEB_UI_DATA": "/data/web-ui.sqlite3"
+    "WEB_UI_DATA": "/data/web-ui.sqlite3",
+    "KAFKA_RETENTION_DAYS": "21",
+    "DB_POOL_SIZE": "2",
+    "DB_MAX_OVERFLOW": "0",
+    "DB_POOL_TIMEOUT": "10",
+    "DEPLOYMENT_ZONE": "asia-south1-a",
+    "CLOUD_LIFECYCLE_PROTOCOL": "1"
   },
   "secrets": {
     "enabled": true,
@@ -61,7 +67,17 @@
       "replicas": 1,
       "hpa": true,
       "web": false,
-      "notification": false
+      "notification": false,
+      "resources": {
+        "requests": {
+          "cpu": "50m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "512Mi"
+        }
+      }
     },
     "order-service": {
       "factory": "order",
@@ -72,7 +88,17 @@
       "replicas": 1,
       "hpa": true,
       "web": false,
-      "notification": false
+      "notification": false,
+      "resources": {
+        "requests": {
+          "cpu": "50m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "512Mi"
+        }
+      }
     },
     "restaurant-api": {
       "factory": "restaurant-api",
@@ -176,7 +202,17 @@
       "kafka": true,
       "firestore": false,
       "replicas": 1,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "delivery-outbox": {
       "module": "delivery_assignment_service.outbox",
@@ -185,7 +221,17 @@
       "kafka": true,
       "firestore": false,
       "replicas": 1,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "kitchen-worker": {
       "module": "order_service.event_consumer",
@@ -194,7 +240,17 @@
       "kafka": true,
       "firestore": true,
       "replicas": 1,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "kitchen-sync": {
       "module": "kitchen_workflow.sync",
@@ -203,7 +259,17 @@
       "kafka": false,
       "firestore": true,
       "replicas": 1,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "50m",
+          "memory": "192Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "notification-consumer": {
       "module": "notification_service.consumer",
@@ -212,7 +278,17 @@
       "kafka": true,
       "firestore": false,
       "replicas": 1,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "notification-reconcile": {
       "module": "notification_service.reconcile",
@@ -221,7 +297,17 @@
       "kafka": false,
       "firestore": false,
       "replicas": 1,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "task-scheduler": {
       "module": "task_scheduler.leader",
@@ -230,7 +316,17 @@
       "kafka": false,
       "firestore": false,
       "replicas": 2,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "task-worker": {
       "module": "task_scheduler.worker",
@@ -239,7 +335,17 @@
       "kafka": false,
       "firestore": false,
       "replicas": 2,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "payment-worker": {
       "module": "payment_service.worker",
@@ -248,7 +354,17 @@
       "kafka": false,
       "firestore": false,
       "replicas": 2,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "kitchen-stage-worker": {
       "module": "kitchen_workflow.worker",
@@ -257,7 +373,17 @@
       "kafka": false,
       "firestore": false,
       "replicas": 2,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "delivery-worker": {
       "module": "delivery_assignment_service.worker",
@@ -266,7 +392,17 @@
       "kafka": false,
       "firestore": false,
       "replicas": 2,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "notification-worker": {
       "module": "notification_service.worker",
@@ -275,7 +411,17 @@
       "kafka": false,
       "firestore": false,
       "replicas": 2,
-      "analytics": false
+      "analytics": false,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     },
     "restaurant-analytics-results": {
       "module": "restaurant_service.analytics_results",
@@ -284,22 +430,32 @@
       "kafka": true,
       "firestore": true,
       "replicas": 1,
-      "analytics": true
+      "analytics": true,
+      "resources": {
+        "requests": {
+          "cpu": "25m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        }
+      }
     }
   },
   "resources": {
     "requests": {
-      "cpu": "100m",
-      "memory": "192Mi"
+      "cpu": "50m",
+      "memory": "128Mi"
     },
     "limits": {
-      "cpu": "1000m",
+      "cpu": "500m",
       "memory": "512Mi"
     }
   },
   "hpa": {
     "min": 1,
-    "max": 6,
+    "max": 4,
     "cpu": 60,
     "memory": 75,
     "scaleDownSeconds": 180
@@ -328,7 +484,8 @@
       "KAFKA_SECRET_VERSION": "projects/replace-project-id/secrets/food-kafka/versions/1",
       "ANALYTICS_CHECKPOINT_URI": "gs://replace-project-id-food-checkpoints/flink",
       "ANALYTICS_JAR_URI": "gs://replace-project-id-food-artifacts/restaurant-analytics-assignment-v1.jar",
-      "ANALYTICS_RELEASE": "assignment-v1"
+      "ANALYTICS_RELEASE": "assignment-v1",
+      "ANALYTICS_CONTROL_URI": "gs://replace-project-id-food-checkpoints/lifecycle/analytics.json"
     }
   },
   "loadTest": {
@@ -339,6 +496,17 @@
       "RAMP": "1m",
       "HOLD": "8m",
       "PAUSE": "0.1"
+    }
+  },
+  "computeProfile": "demo",
+  "sqlProxyResources": {
+    "requests": {
+      "cpu": "25m",
+      "memory": "32Mi"
+    },
+    "limits": {
+      "cpu": "250m",
+      "memory": "128Mi"
     }
   },
   "clusterName": "food-gke",

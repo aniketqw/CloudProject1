@@ -25,7 +25,7 @@ class Handoff(unittest.TestCase):
   settings=json.loads(first["flinkJob"]["args"][0].split("=",1)[1])
   self.assertEqual(settings["KAFKA_SECRET_VERSION"],ENV["KAFKA_SECRET_VERSION"])
   self.assertNotIn("api_secret",settings)
-  self.assertEqual(spec({**ENV,"ANALYTICS_SAVEPOINT":"gs://protected-checkpoints/savepoint"})[2]["flinkJob"]["savepointUri"],"gs://protected-checkpoints/savepoint")
+  self.assertEqual(spec({**ENV,"ANALYTICS_SAVEPOINT":"gs://protected-checkpoints/flink/savepoints/manual/savepoint-test"})[2]["flinkJob"]["savepointUri"],"gs://protected-checkpoints/flink/savepoints/manual/savepoint-test")
  def test_managed_launch_reuses_existing_active_release(self):
   session=Session([Response(200,{"status":{"state":"RUNNING"}})])
   self.assertEqual(submit(session,ENV)[1],"existing");self.assertEqual(session.posts,[])

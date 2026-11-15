@@ -40,9 +40,7 @@ spec:
           restartPolicy: Always
           args: ["--private-ip","--structured-logs","--port=3306",{{ $.Values.cloudSqlConnection | quote }}]
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: ["ALL"]}}
-          resources:
-            requests: {cpu: 50m, memory: 64Mi}
-            limits: {cpu: 500m, memory: 256Mi}
+          resources: {{ $.Values.sqlProxyResources | toJson }}
           startupProbe:
             tcpSocket: {port: 3306}
             periodSeconds: 2
@@ -69,6 +67,9 @@ spec:
             - secretRef: {name: food-web}
             {{- end }}
           env:
+            {{- if and $w.sql (not $w.factory) (eq $.Values.computeProfile "demo") }}
+            - {name: DB_POOL_SIZE, value: "1"}
+            {{- end }}
             - name: SERVICE_NAME
               value: {{ default $name $w.factory | quote }}
             - name: WORKER_NAME
@@ -81,7 +82,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: {drop: ["ALL"]}
-          resources: {{ $.Values.resources | toJson }}
+          resources: {{ default $.Values.resources $w.resources | toJson }}
           {{- if $w.factory }}
           startupProbe:
             httpGet: {path: /health, port: http}

@@ -25,6 +25,14 @@
     "kafka_api_secret": {
       "type": "string",
       "sensitive": true
+    },
+    "retention_days": {
+      "type": "number",
+      "default": 21,
+      "validation": {
+        "condition": "${var.retention_days >= 7 && var.retention_days <= 30 && floor(var.retention_days) == var.retention_days}",
+        "error_message": "Select 7 to 30 whole retention days and keep the pause within the safe margin."
+      }
     }
   },
   "resource": {
@@ -34,7 +42,7 @@
         "topic_name": "${each.value}",
         "partitions_count": 3,
         "config": {
-          "retention.ms": "604800000"
+          "retention.ms": "${tostring(var.retention_days * 86400000)}"
         },
         "lifecycle": {
           "prevent_destroy": true
