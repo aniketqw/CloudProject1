@@ -4,7 +4,7 @@ Prepared: 14 November 2026. Updated: 15 November 2026.
 
 ## 1. What is ready
 
-The verified application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. It was published to both `main` and `dev` before this guide was written. This guide documents deployment and source recovery for that baseline. The smaller capacity profile and lifecycle helpers are a later local update, pending publication and real-cloud validation.
+The preserved, verified application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. The smaller capacity profile and lifecycle helpers were published to `main` in commit **2f05f2f76f2bacf5ede91378503d2345f7cc6dcb**. Start cloud deployment from the current `origin/main`, which includes those helpers; use the older baseline only for independent source recovery. Real-cloud validation is still pending.
 
 The eight assigned services are implemented: Customer, Restaurant, Order, Task Scheduler, Kitchen Workflow, Delivery Assignment, Payment and Notification. Restaurant Service includes Flink streaming analytics. The UI has separate customer, kitchen, courier and operations pages, interactive charts and an execution graph showing real task prerequisites.
 
@@ -19,6 +19,21 @@ The eight assigned services are implemented: Customer, Restaurant, Order, Task S
 | Browser charts, graph interaction and live updates | Checked |
 
 The updated Python suite includes the lifecycle and database-pool contracts. Full Compose/browser/Flink execution evidence listed above was obtained for the preserved application baseline; the smaller managed-cloud profile has not been executed on GCP. These results verify local behavior and contracts. **GCP deployment, managed-service integration, public HTTPS and final cloud load/HPA acceptance remain to be completed before deployment can be considered finished.** Payments and notification delivery remain simulations for this assignment. Couriers use synthetic identities and explicit manual/scripted actions.
+
+### Implementation scope and deployment responsibilities
+
+The agreed application features and deployment helpers are implemented. No additional service, UI page or business workflow is planned for the current scope. The deployment operator's work is to configure accounts and resources, publish the release, deploy it and collect real cloud evidence. The first GCP deployment may still require focused configuration changes or bug fixes; the locally passing tests do not establish that every managed-service integration works.
+
+| Area | Already supplied | Deployment responsibility |
+| --- | --- | --- |
+| Application | Eight domain services, simulated payments/notification delivery and synthetic courier actions | Run the complete order flow against the deployed services |
+| Interface | Separate customer, kitchen, courier and operations pages, charts and task-dependency graph | Verify HTTPS access, interactions and live updates |
+| Coordination | ZooKeeper ensemble, scheduling, ownership/leases, dependencies and recovery logic | Verify the actual GKE ensemble and abandoned-work recovery |
+| Streaming analytics | Restaurant-owned Flink pipeline and savepoint/restart helpers | Verify managed Dataproc execution, committed results and restored state |
+| Infrastructure | Unified Terraform roots, Helm charts, GitOps manifests and private secret-input prompts | Supply the reviewed settings, arrange permissions and apply the plans |
+| Scaling and operations | Load workload, two HPAs, telemetry and pause/resume helpers | Run the required sustained load and a real pause/resume rehearsal |
+
+Use this execution order: **section 5 checkout/tools -> section 6 settings/secrets -> section 7 infrastructure -> section 8 release build -> section 9 Git publication -> section 10 GitOps/DNS -> section 11 cloud acceptance -> section 14 pause/resume rehearsal**. Run stages individually and stop on the first failure. Plan/apply pairs require review between the two commands; do not paste the entire guide into one unattended shell run.
 
 ## 2. Source code preserved for independent recovery
 
@@ -94,18 +109,66 @@ A deployer needs appropriate access to these systems; giving every deployer the 
 
 Previously public Confluent credentials must be replaced **and the old keys revoked by their owner**. Any previously public database password must be changed if that account/database is still active. Removing credentials from Git does not invalidate them. Do not reuse them for deployment.
 
+### Information and access to arrange first
+
+Collect non-secret identifiers and grant access through individual accounts before starting. This guide must never become a place to record actual passwords or API secrets.
+
+| Item | What the deployment operator needs | Where it is used |
+| --- | --- | --- |
+| GCP | Project ID, region/zone, intended billing account, usable credits and required quotas | Non-secret configuration and reviewed infrastructure plan |
+| GCP deployer | Permission to enable APIs, create the declared resources and manage the required service accounts/IAM; IAP/OS Login access for the lifecycle workflow | Individual CLI login and Application Default Credentials; see section 14 for lifecycle access |
+| Network administration | The deployer's restricted public IPv4 CIDR; update it deliberately if their network changes | `admin_cidr` restricts cluster administration |
+| Existing Firestore | Whether the intended default database already exists | Set `create_firestore` deliberately; do not attempt to recreate a shared database |
+| Existing Confluent cluster | Cluster ID, Kafka bootstrap address and Kafka REST endpoint | Non-secret configuration |
+| Confluent application identity | A fresh cluster-specific application API key/secret and the permissions used by the producers, consumers and Flink transactions | Hidden `deploy.secret_inputs cloud` prompts |
+| Confluent topic administration | A separate authorized cluster-specific key/secret for topic administration | Hidden `deploy.secret_inputs kafka` prompts |
+| Git repository | Read access for GitOps and write access for the deployment branch/release tag | Credential-free repository URL and published immutable release |
+| DNS | A real hostname and ability to set its A record; an existing managed-zone name if using Cloud DNS | `public_host` and optional `dns_zone` |
+| Release and state | A new unused release/image label, stable resource prefix and globally unique private state-bucket name | `git_revision`, `image_tag`, `prefix` and `state_bucket` |
+| Application access | A non-secret operator username and a newly chosen passphrase | Username in configuration; passphrase entered only through the hidden prompt |
+
+GCP CLI access and Application Default Credentials are configured with the two login commands in section 5. Use authorized individual access; routine deployment does not require sharing personal login credentials or downloading a service-account JSON key. See [Google local ADC setup](https://docs.cloud.google.com/docs/authentication/set-up-adc-local-dev-environment).
+
+The Kafka Terraform root configures four topics in an **existing** Confluent cluster: `orders`, `kitchen_status`, `delivery_assignments` and `restaurant_analytics_results`, with three partitions each. It does not create the Confluent account/cluster, issue API keys or grant the application's Kafka ACLs. The Confluent owner must arrange that access beforehand, including consumer-group and transactional-ID permissions. Creating an API key alone is not a substitute for granting its principal the required permissions. See [Confluent API-key documentation](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html).
+
+Argo CD must be able to read the selected repository and release tag. If using a private repository, arrange its controller-side read credentials separately through protected configuration; never embed a token in the repository URL.
+
+The supplied analytics job runs on GCP Dataproc. No Confluent-managed Flink service or managed connector is required by this deployment. The infrastructure creates a new Cloud SQL application password; existing local database credentials are not deployment inputs. Check both providers' actual billing/trial expiry before a presentation or long pause.
+
 ## 5. Prepare the deployment checkout and tools
 
-Work on a deployment branch based on the verified application, keeping the baseline tag intact. The commands below are for the deployment operator to run; this handoff has not created that branch or deployed anything.
+Work on a deployment branch based on the current published `main`, keeping the recovery baseline tag intact. The commands below are for the deployment operator to run; this handoff has not created that branch or deployed anything.
+
+On a new machine, first clone into a new folder. Skip this block if already in the intended checkout:
 
 ```powershell
-git fetch origin
-git switch -c cloud-deploy f82c4da7557d7c43993a50e06bf843182ed161a6
+git clone https://github.com/utkarsharora100/CloudProject1.git CloudProject1-cloud
+Set-Location CloudProject1-cloud
 ```
 
-If `cloud-deploy` already exists, inspect/use it instead of overwriting it. Obtain this guide separately if its documentation change has not yet been published.
+From that checkout, check for local changes before switching branches. Preserve any existing work:
 
-Install Git, Python 3.12, Docker with Linux containers, Terraform 1.6 or newer, Helm, Google Cloud CLI, kubectl and the GKE authentication plugin. Node.js is needed for the local JavaScript verification scripts. Java/Maven compilation runs inside the build container.
+```powershell
+git status --short
+git fetch origin
+git switch -c cloud-deploy origin/main
+```
+
+If `cloud-deploy` already exists, inspect/use it instead of overwriting it. Confirm its source includes `deploy/lifecycle.py` and `deploy/profiles.json` before proceeding. The older recovery commit does not include the later lifecycle helpers.
+
+Install Git, Python 3.12, Docker with Linux containers, Terraform 1.6 or newer, Helm, Google Cloud CLI, kubectl and the GKE authentication plugin. Start Docker Desktop before building release artifacts. Node.js is needed for the local JavaScript verification scripts. Java/Maven compilation runs inside the build container.
+
+Check tool availability before authenticating or provisioning:
+
+```powershell
+$requiredTools = 'git', 'py', 'docker', 'terraform', 'helm', 'gcloud', 'kubectl', 'gke-gcloud-auth-plugin'
+foreach ($tool in $requiredTools) {
+    Get-Command $tool -ErrorAction Stop | Select-Object Name, CommandType
+}
+py -3.12 --version
+```
+
+`$ErrorActionPreference = 'Stop'` alone does not make Windows PowerShell stop on every native CLI error. Check each command's result and stop if it fails; in an automation script, test `$LASTEXITCODE` after each native command.
 
 Create a private Python environment without changing PowerShell execution policy:
 
@@ -133,7 +196,7 @@ Copy the template:
 Copy-Item -LiteralPath deploy/config.example.json -Destination deploy/config.team.json
 ```
 
-Edit `deploy/config.team.json` locally. It is ignored by Git. Use the 18 fields below with their original JSON types. Older configuration files may omit `compute_profile`; it defaults to `demo`.
+Edit `deploy/config.team.json` locally. It is ignored by Git. Use the 17 fields below with their original JSON types. Older configuration files may omit `compute_profile`; it defaults to `demo`.
 
 | Field | Meaning |
 | --- | --- |
@@ -157,7 +220,7 @@ Edit `deploy/config.team.json` locally. It is ignored by Git. Use the 18 fields 
 
 Do not use template placeholder values. Do not add API keys/passwords to this file.
 
-Choose `cloud-release-v1` before rendering, but create its Git tag only after the generated deployment manifests are committed in section 9. This makes the release tag resolve to the commit containing its own deployment configuration. Do not point the first deployment directly at the baseline commit: that commit does not contain the generated `deploy/environments/team` files.
+For the first deployment, replace the template's `git_revision` and `image_tag` with the same new, unused release label, such as `cloud-release-v1`. The template's `dev` revision is not the immutable release used by this runbook. Choose the label before rendering, but create its Git tag only after the generated deployment manifests are committed in section 9. This makes the release tag resolve to the commit containing its own deployment configuration. Do not point the first deployment directly at the baseline commit: that commit does not contain the generated `deploy/environments/team` files.
 
 ```powershell
 $config = Get-Content -Raw -LiteralPath deploy/config.team.json | ConvertFrom-Json
@@ -322,6 +385,16 @@ The capture checks actual GCE-backed nodes, CPU and memory HPA metrics, both sel
 
 For deployment changes, prefer the config renderer and the generated deployment Helm values. Keep business logic, task dependencies, idempotency, payment/refund ownership and delivery capacity rules intact. Do not edit source to bypass a failed readiness or security check.
 
+### Handling a first-deployment failure
+
+1. Stop at the failing stage. Record the stage, timestamp, release commit/tag, resource type and a sanitized error summary. Keep raw logs, state, plans, kubeconfig and credential-bearing responses private.
+2. Check account/project, billing/quota, API enablement, IAM, endpoints, secret versions and DNS before changing application code. A Kafka permission failure requires correcting access for the intended principal; it does not justify using a shared personal login.
+3. For a settings correction, edit the ignored non-secret configuration and rerun the renderer as described in sections 6 and 8. Generate and review a fresh Terraform plan when its inputs change. Respect any existing resources or state after a partial apply; do not destroy them merely to retry.
+4. If managed-runtime compatibility or an application defect requires a code change, make a focused fix on the deployment branch and run the relevant checks. Build and publish the affected release artifacts with a new immutable release label. Keep Git, image and analytics release identities consistent; use the stateful release procedure for a running Flink job.
+5. Check the affected service/integration again, then continue from the correct stage. Keep failed evidence and mark unresolved checks as failed or not run. Do not disable required services, ZooKeeper members, HPAs, probes or credential safeguards to obtain a passing screen.
+
+Keep the default `demo` profile while diagnosing. If measured capacity is insufficient, report scheduling events or measured resource pressure and review a deliberate sizing change; do not silently switch to the larger profile. Never change release identity or infrastructure while a lifecycle pause/resume operation is unfinished.
+
 ### Cloud rollback is separate from source recovery
 
 The preserved local source is your independent fallback. Cloud rollback additionally requires coordination with live databases, Kafka, secrets, migrations and Flink state.
@@ -342,7 +415,22 @@ Do not use Terraform destroy or deletion of the Argo root Application as a casua
 
 ## 13. Final deployment handover
 
-Provide release commit/tag and image identity, public application URL, resource inventory, deployment ownership, where protected remote state is held, successful cloud acceptance/load evidence, remaining limitations, and a cost/cleanup plan.
+Return a sanitized deployment record with the items below. Use explicit **passed**, **failed** or **not run** status and actual test timestamps; unexecuted cloud checks must remain not run.
+
+| Handover item | Evidence to provide |
+| --- | --- |
+| Release | Git commit/tag, application image identity and analytics artifact identity |
+| Environment | Project ID, region/zone, deployed capacity profile and resource inventory |
+| Public access | Working HTTPS URL, DNS and certificate readiness |
+| Application | Readiness of all eight services and a synthetic order's payment, kitchen, assignment, pickup, delivery and notification results |
+| Failure/recovery behavior | Payment retry, unavailable-courier behavior and scheduler ownership/lease recovery results |
+| Managed integrations | Cloud SQL/Firestore persistence, receipt-confirmed function transport and actual Flink checkpoints/results |
+| Scaling | Actual sustained-load result and scale-out evidence for both required HPAs |
+| Pause/resume | A completed cloud rehearsal, restored analytics state and healthy services afterward |
+| Operations | Metrics/log visibility, actual observed usage/cost, credit-expiry dates and a pause/cleanup owner |
+| Ownership and gaps | Protected state location and access owner, bootstrap-state handover, unresolved issues and checks not run |
+
+Keep full state, plans, private inputs, raw evidence/logs and recovery journals in protected storage. Share only sanitized evidence; omit customer contact/address data, private lease/session proofs and credentials. A fresh source clone does not transfer Terraform state ownership or the local recovery ZIPs.
 
 Pass access through IAM and approved secret storage, not credential-bearing documents or screenshots. Personal names/student IDs and `task_divison.txt` remain deferred until the required information is supplied.
 
@@ -350,7 +438,7 @@ Keep the source baseline and its local recovery tag unchanged while the cloud wo
 
 ## 14. Low-cost demonstration profile and pause/resume
 
-Updated locally on 15 November 2026. The default `compute_profile` is now `demo`. These changes must be included in the release source and newly built application image before using this lifecycle workflow.
+Published to `main` on 15 November 2026. The default `compute_profile` is `demo`. Build the release application image from this updated source before using the lifecycle workflow.
 
 | Setting | Demo default |
 | --- | --- |
@@ -492,4 +580,4 @@ Use Basic Kafka for the demonstration, keep data retention deliberate, check act
 
 The deployment operator must still verify actual IAM/IAP access, infrastructure provisioning, DNS/certificate readiness, the managed function/receipt path, the complete order flow, managed Flink state restoration and both HPAs under the required sustained load. Run a full pause/resume rehearsal before presentation day.
 
-The original source-only baseline remains intact. An additional source-only archive of this updated handoff is kept locally at `.local-build/recovery/budget-lifecycle-source.zip` with its SHA-256 manifest. It contains source/configuration only, without images, credentials, Terraform state or runtime data.
+The original source-only baseline remains intact. An additional source-only snapshot of the budget/lifecycle implementation, captured before its publication, is kept locally at `.local-build/recovery/budget-lifecycle-source.zip` with its SHA-256 manifest. Later documentation edits are not retroactively included in that frozen snapshot. It contains source/configuration only, without images, credentials, Terraform state or runtime data.
