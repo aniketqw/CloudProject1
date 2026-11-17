@@ -20,8 +20,8 @@ spec:
         - name: cloud-sql-proxy
           image: {{ .Values.sqlProxyImage | quote }}
           restartPolicy: Always
-          args: ["--private-ip","--structured-logs","--port=3306",{{ .Values.cloudSqlConnection | quote }}]
-          startupProbe: {tcpSocket: {port: 3306}, periodSeconds: 2, failureThreshold: 60}
+          args: ["--private-ip","--structured-logs","--port=3306","--health-check","--http-address=0.0.0.0","--http-port=9801",{{ .Values.cloudSqlConnection | quote }}]
+          startupProbe: {httpGet: {path: /startup, port: 9801}, periodSeconds: 2, timeoutSeconds: 2, failureThreshold: 60}
           resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {cpu: 500m, memory: 256Mi}}
       {{- end }}
       containers:
