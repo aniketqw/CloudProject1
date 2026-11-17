@@ -247,33 +247,58 @@
         "project": "${var.project_id}",
         "role": "${google_project_iam_custom_role.launcher.name}",
         "member": "serviceAccount:${google_service_account.identities[\"launcher\"].email}"
+      },
+      "function_generated_source": {
+        "project": "${var.project_id}",
+        "role": "roles/storage.objectViewer",
+        "member": "serviceAccount:${google_service_account.identities[\"build\"].email}",
+        "condition": {
+          "title": "${var.prefix}-function-source-only",
+          "description": "Read only the generated source objects for this notification function; excludes Terraform state and application buckets.",
+          "expression": "resource.type == \"storage.googleapis.com/Object\" && resource.name.startsWith(\"projects/_/buckets/gcf-v2-sources-${data.google_project.current.number}-${var.region}/objects/${var.prefix}-notification-transport/\")"
+        }
       }
     },
     "google_service_account_iam_member": {
       "wif_sql": {
         "service_account_id": "${google_service_account.identities[\"sql\"].name}",
         "role": "roles/iam.workloadIdentityUser",
-        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-sql]"
+        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-sql]",
+        "depends_on": [
+          "google_container_cluster.gke"
+        ]
       },
       "wif_firestore": {
         "service_account_id": "${google_service_account.identities[\"firestore\"].name}",
         "role": "roles/iam.workloadIdentityUser",
-        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-firestore]"
+        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-firestore]",
+        "depends_on": [
+          "google_container_cluster.gke"
+        ]
       },
       "wif_combined": {
         "service_account_id": "${google_service_account.identities[\"combined\"].name}",
         "role": "roles/iam.workloadIdentityUser",
-        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-combined]"
+        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-combined]",
+        "depends_on": [
+          "google_container_cluster.gke"
+        ]
       },
       "wif_notification": {
         "service_account_id": "${google_service_account.identities[\"notify\"].name}",
         "role": "roles/iam.workloadIdentityUser",
-        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-notification]"
+        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-notification]",
+        "depends_on": [
+          "google_container_cluster.gke"
+        ]
       },
       "wif_eso": {
         "service_account_id": "${google_service_account.identities[\"secrets\"].name}",
         "role": "roles/iam.workloadIdentityUser",
-        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-eso]"
+        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-eso]",
+        "depends_on": [
+          "google_container_cluster.gke"
+        ]
       },
       "pubsub_token": {
         "service_account_id": "${google_service_account.identities[\"trigger\"].name}",
@@ -286,7 +311,10 @@
       "wif_launcher": {
         "service_account_id": "${google_service_account.identities[\"launcher\"].name}",
         "role": "roles/iam.workloadIdentityUser",
-        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-launcher]"
+        "member": "serviceAccount:${var.project_id}.svc.id.goog[food/food-launcher]",
+        "depends_on": [
+          "google_container_cluster.gke"
+        ]
       },
       "launcher_actas": {
         "service_account_id": "${google_service_account.identities[\"flink\"].name}",
@@ -671,7 +699,10 @@
           "google_storage_bucket_iam_member.function_write",
           "google_storage_bucket_iam_member.function_read",
           "google_artifact_registry_repository_iam_member.function_build",
-          "google_service_account_iam_member.pubsub_token"
+          "google_service_account_iam_member.pubsub_token",
+          "google_project_iam_member.function_generated_source",
+          "google_storage_bucket_iam_member.build_source",
+          "google_project_iam_member.role_12"
         ]
       }
     },
@@ -744,7 +775,10 @@
             "internal_ip_only": true,
             "service_account": "${google_service_account.identities[\"flink\"].email}",
             "service_account_scopes": [
-              "https://www.googleapis.com/auth/cloud-platform"
+              "https://www.googleapis.com/auth/cloud-platform",
+              "https://www.googleapis.com/auth/cloud.useraccounts.readonly",
+              "https://www.googleapis.com/auth/devstorage.read_write",
+              "https://www.googleapis.com/auth/logging.write"
             ],
             "tags": [
               "${var.prefix}-dataproc"
@@ -763,10 +797,15 @@
           },
           "worker_config": {
             "num_instances": "${local.capacity.flink_workers}",
-            "machine_type": "${local.capacity.flink_machine}",
-            "disk_config": {
-              "boot_disk_size_gb": "${local.capacity.flink_disk_gb}",
-              "boot_disk_type": "pd-standard"
+            "machine_type": "${local.capacity.flink_workers == 0 ? null : local.capacity.flink_machine}",
+            "dynamic": {
+              "disk_config": {
+                "for_each": "${local.capacity.flink_workers == 0 ? [] : [1]}",
+                "content": {
+                  "boot_disk_size_gb": "${local.capacity.flink_disk_gb}",
+                  "boot_disk_type": "pd-standard"
+                }
+              }
             }
           },
           "software_config": {

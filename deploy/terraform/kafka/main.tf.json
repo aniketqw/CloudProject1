@@ -33,6 +33,20 @@
         "condition": "${var.retention_days >= 7 && var.retention_days <= 30 && floor(var.retention_days) == var.retention_days}",
         "error_message": "Select 7 to 30 whole retention days and keep the pause within the safe margin."
       }
+    },
+    "topic_partitions": {
+      "type": "map(number)",
+      "default": {},
+      "description": "Existing topic partition counts to preserve during adoption; new topics default to three.",
+      "validation": {
+        "condition": "${alltrue([for name, count in var.topic_partitions : contains([\"orders\", \"kitchen_status\", \"delivery_assignments\", \"restaurant_analytics_results\"], name) && count >= 1 && floor(count) == count])}",
+        "error_message": "Use positive whole partition counts for the four application topics only."
+      }
+    },
+    "topic_configs": {
+      "type": "map(map(string))",
+      "default": {},
+      "description": "Existing writable topic settings to preserve during adoption; retention remains managed by retention_days."
     }
   },
   "resource": {
@@ -40,10 +54,8 @@
       "application": {
         "for_each": "${toset([\"orders\",\"kitchen_status\",\"delivery_assignments\",\"restaurant_analytics_results\"])}",
         "topic_name": "${each.value}",
-        "partitions_count": 3,
-        "config": {
-          "retention.ms": "${tostring(var.retention_days * 86400000)}"
-        },
+        "partitions_count": "${lookup(var.topic_partitions, each.value, 3)}",
+        "config": "${merge(lookup(var.topic_configs, each.value, {}), {\"retention.ms\" = tostring(var.retention_days * 86400000)})}",
         "lifecycle": {
           "prevent_destroy": true
         }
