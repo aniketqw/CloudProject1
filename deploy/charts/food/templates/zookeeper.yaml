@@ -38,6 +38,7 @@ spec:
           startupProbe: {tcpSocket: {port: client}, failureThreshold: 60, periodSeconds: 3}
           readinessProbe:
             exec: {command: ["sh","-ec","zkServer.sh status >/dev/null"]}
+            timeoutSeconds: 5
             periodSeconds: 10
           volumeMounts: [{name: data, mountPath: /data}, {name: data, mountPath: /datalog, subPath: datalog}]
       affinity:

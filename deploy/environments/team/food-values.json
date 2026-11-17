@@ -474,7 +474,8 @@
     "enabled": true
   },
   "networkPolicy": {
-    "enabled": true
+    "enabled": true,
+    "dnsServiceCidr": "10.45.0.10/32"
   },
   "managedFlink": {
     "enabled": true,

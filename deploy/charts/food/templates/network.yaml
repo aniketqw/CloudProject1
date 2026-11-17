@@ -10,7 +10,7 @@ spec:
     - from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}}]
   egress:
     - to: [{podSelector: {}}]
-    - to: [{namespaceSelector: {}}]
+    - to: [{namespaceSelector: {}}, {ipBlock: {cidr: {{ .Values.networkPolicy.dnsServiceCidr | default "10.45.0.10/32" | quote }}}}]
       ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
     - ports: [{port: 443}, {port: 9092}, {port: 3307}, {port: 80}, {port: 988}]
 ---
