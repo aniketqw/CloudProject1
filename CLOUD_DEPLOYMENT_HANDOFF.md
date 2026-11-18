@@ -4,13 +4,13 @@ Prepared: 14 November 2026. Updated: 18 November 2026.
 
 ## 1. What is ready
 
-The preserved local application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. Earlier capacity and lifecycle helpers were published to `main` in commit **2f05f2f76f2bacf5ede91378503d2345f7cc6dcb**. The verified cloud deployment adds managed-service fixes on branch `deploy`, with application release tag **cloud-release-20261118-v11** at commit **7e90c6de257912e4963f1dc3d5f0291533666673**. Use that cloud source for deployment or presentation recovery; use the older frozen baseline for independent local recovery. The current deployment uses project `cloudproject-515012` in `us-central1` / `us-central1-a`. The old source backups remain intact.
+The preserved local application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. Earlier capacity and lifecycle helpers were published to `main` in commit **2f05f2f76f2bacf5ede91378503d2345f7cc6dcb**. The verified cloud deployment adds managed-service fixes on branch `deploy`, with application release tag **cloud-release-20261118-v15** at commit **fbc65d21ac10ec27af1c981ca64584722cb75de9**. Use that cloud source for deployment or presentation recovery; use the older frozen baseline for independent local recovery. The current deployment uses project `cloudproject-515012` in `us-central1` / `us-central1-a`. The old source backups remain intact.
 
 The eight assigned services are implemented: Customer, Restaurant, Order, Task Scheduler, Kitchen Workflow, Delivery Assignment, Payment and Notification. Restaurant Service includes Flink streaming analytics. The UI has separate customer, kitchen, courier and operations pages, interactive charts and an execution graph showing real task prerequisites.
 
 | Local verification completed | Result |
 | --- | --- |
-| Python application regressions | 341 passed in the final source |
+| Python application regressions | 366 passed in the final source |
 | Notification function contracts | 6 passed |
 | JavaScript behavior checks | 3 passed |
 | End-to-end ordering, payment retry, kitchen, courier and notification flow | Passed |
@@ -18,15 +18,15 @@ The eight assigned services are implemented: Customer, Restaurant, Order, Task S
 | Prometheus targets and local observability check | 12 targets; passed |
 | Browser charts, graph interaction and live updates | Checked |
 
-The final source has **341 passing Python tests**, including the actual k6 export regression, lifecycle and bounded database-pool contracts. The preserved baseline retains its original Compose/Flink evidence. The live cloud checks below are separate measurements. Payments and notification delivery remain simulations for this assignment; the cloud function confirms in-app transport receipts without sending real email or SMS. Couriers use synthetic identities and explicit manual/scripted actions.
+The final source has **366 passing Python tests**, including the actual k6 export regression, lifecycle and bounded database-pool contracts. The preserved baseline retains its original Compose/Flink evidence. The live cloud checks below are separate measurements. Payments and notification delivery remain simulations for this assignment; the cloud function confirms in-app transport receipts without sending real email or SMS. Couriers use synthetic identities and explicit manual/scripted actions.
 
 ### Current cloud instance and evidence (18 November 2026)
 
 - Public HTTPS address: [Supper](https://food-136-69-72-1.sslip.io).
-- **Final state: paused to save credits.** Resume before opening the app. Local Docker Desktop is stopped and is unnecessary for cloud resume.
-- Final source-and-documentation tag: `cloud-handoff-20261118-deploy`; the active application/GitOps release remains `cloud-release-20261118-v11`.
-- Source branch: `deploy`; current GitOps revision: `cloud-release-20261118-v11`.
-- Application image release: `cloud-release-20261118-v11`; analytics artifact release: `cloud-release-20261118-v3`. Web changes preserve the running analytics identity.
+- **Current state: running for the requested customer-access review and tutorial.** Public browsing is enabled. Pause after the demonstration to save credits; local Docker is not needed to use the cloud website.
+- Final source-and-documentation tag: `cloud-handoff-20261118-customers`; the active application/GitOps release is `cloud-release-20261118-v15`.
+- Source branch: `deploy`; current GitOps revision: `cloud-release-20261118-v15`.
+- Application image release: `cloud-release-20261118-v15`; analytics artifact release: `cloud-release-20261118-v3`. Web changes preserve the running analytics identity.
 - Capacity: three `e2-standard-2` GKE workers, one `e2-standard-2` analytics VM and `db-g1-small` SQL. No larger compute profile was selected.
 - Credentials are supplied by pinned Secret Manager versions. Private configuration, operator unlock data, state, plans and raw evidence stay outside Git.
 
@@ -42,15 +42,35 @@ The final source has **341 passing Python tests**, including the actual k6 expor
 | 60-VU sustained probe | 26,437 requests; zero HTTP/business errors; both APIs scaled from one to four; **failed** the two-second latency target with p95 6,658.79 ms |
 | 12-VU sustained probe | **Passed**: 31,485 requests, zero HTTP/business errors, p95 983.80 ms; Customer 2 to 4 replicas, Order 3 to 4; 62 saved samples |
 | Normal savepoint pause/resume | Passed: canonical savepoint restored, both Flink tasks running and 102 new checkpoints observed; old order, workspace and committed windows retained. Resume took 26 minutes 13 seconds. |
-| Final release acceptance | Passed on `v11`: fresh delivered order, 10 customer and 3 courier notifications, one durable attempt each; desktop/mobile browser checks passed. |
+| Current v15 operator acceptance | Passed: a fresh delivered order, 10 customer and 3 courier notifications, desktop/mobile browser checks, exact courier handoffs and receipt-confirmed graph tasks. Total run: 370.8 seconds. |
+| Current v15 public accounts and restart | Passed: anonymous browsing, real guest delivery with 8 customer / 3 courier receipts, staff form sign-in/sign-out, guest history and address retained at signup, returning sign-in, two-account isolation, and persistent authenticated sessions/order data after a real web-pod replacement. |
+| Previous v11 functional acceptance | Passed on `v11`: fresh delivered order, 10 customer and 3 courier notifications, one durable attempt each; desktop/mobile browser checks passed. |
 | Final fresh analytics | Passed: two committed windows, distinct-order counting and interactive stream selection; restored Flink run had 188 new completed checkpoints before final pause. |
-| Final paused state | Passed: zero actual/target GKE workers, SQL `NEVER` with no pending operations, analytics `STOPPED`, all 24 application Deployments and ZooKeeper at zero; GitOps and analytics submission suspended, savepoint metadata verified and operator lease released. Final pause took 9 minutes 39 seconds. |
+| Recorded v11 pause verification | Passed: zero actual/target GKE workers, SQL `NEVER` with no pending operations, analytics `STOPPED`, all 24 application Deployments and ZooKeeper at zero; GitOps and analytics submission suspended, savepoint metadata verified and operator lease released. Final pause took 9 minutes 39 seconds. |
 
 The final readiness fix was measured on the live `v11` container: the Notification reconciliation heartbeat probe completed in 0.106 to 0.222 seconds against its eight-second timeout, with the deployed source hash matching the verified source. Heartbeat freshness and connectivity checks remain enforced; SQL-backed outbox and scheduler-owner checks remain unchanged.
 
 The small analytics VM also hosts managed Hadoop daemons. The deployment therefore sets the Flink JobManager process to `768m` and TaskManager process to `1024m`; the recovered run used 1,792 MiB of YARN allocation. Keep the existing global Java options from the managed image: adding a nested `env.java.opts.client` conflicts with its legacy scalar `env.java.opts`. The launcher uses the separate `env.java.default-opts.client` namespace. See [Flink memory configuration](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/deployment/config/) and [Google memory-protection troubleshooting](https://docs.cloud.google.com/managed-spark/docs/support/troubleshoot-oom-errors). A completed external checkpoint is a crash-recovery input. The separate normal canonical-savepoint pause/resume rehearsal also passed, including verification of restored Flink state and retained application data.
 
 Private evidence is under `.local-build/cloud/` and `.local-build/evidence/`. The first probe's full metric samples were lost when its old summary exporter rejected a literal newline escape; its measured k6 summary and replica-transition log are retained. The fixed exporter saves samples throughout subsequent runs and still marks failed Jobs or invalid timing as failures.
+
+### Public customer access and restricted operator tools
+
+The cloud configuration supports `customer_access: "enabled"` (the renderer default) or `"disabled"` for the earlier protected demonstration. The Helm flag injects `WEB_CUSTOMER_ACCESS` only into the web workload. The existing local Compose demo defaults to disabled; optional local public-mode settings use `WEB_CUSTOMER_ACCESS`, `LOCAL_WEB_OPERATOR_USER` and a dedicated `LOCAL_WEB_OPERATOR_PASSWORD_HASH`. Keep actual cloud credentials out of local containers.
+
+Guests can open the homepage and menus without the browser login prompt. Adding a meal starts a private guest table; checkout provides address entry without requiring an account. `/signup` and `/signin` provide optional customer accounts, and sign-out invalidates the server session. Sign-in preserves a guest cart and grants access to that account's saved details, addresses, order history and customer inbox. Return to checkout after signing in to use the retained cart.
+
+Sign-up and sign-in forms use explicit POST actions and keep submission disabled until the JavaScript handler is attached. That handler binds before account-data requests, so a slow inbox/context request cannot fall back to a native GET submission. A browser regression delays both the module and account-data loading and checks that credential fields never appear in URLs.
+
+Account sessions rotate their opaque cookie and CSRF token after authentication. Passwords are stored only as salted scrypt hashes. Login attempts and password-hashing concurrency are bounded. Account identity, session ownership, per-restaurant table/fleet bindings and rate limits are stored in additive tables in the existing private web SQLite volume. Customer profiles, addresses and domain order records remain in Cloud SQL. The web workload stays at one replica; moving it to multiple writable replicas requires a deliberate shared-store design. A planned web-pod replacement can briefly return gateway errors while the public load balancer updates its backend. This small configuration does not promise zero downtime. Restart acceptance waits for the new pod and sustained authenticated HTTPS responses before checking account history and isolation.
+
+Each guest/account sees only owned customer records. Server-side checks protect direct API requests as well as navigation. Kitchen, Courier, Operations, courier inboxes and demonstration-workspace creation require the existing trusted operator account. There are no self-registered staff roles; individual restaurant/courier staff-account provisioning is not part of this release. The operator can select a customer table to prepare and deliver that customer's order through the same domain APIs.
+
+Tables keep the restaurant and its courier fleet stable when a customer orders from another restaurant or uses two sessions. An unconfirmed checkout blocks sign-in/session changes until reconciled; after an account session expires, committed orders can be recovered from the owning customer's authoritative Order records. Earlier operator fixtures remain private and their data is preserved.
+
+Use a unique demo passphrase of at least 15 characters. Email ownership verification, automated password recovery and real payment/email/SMS delivery are not provided. The website login is separate from GCP and Confluent access, and no backend credentials are shipped to the browser. See [OWASP authentication guidance](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html) and [Flask web-security guidance](https://flask.palletsprojects.com/en/stable/web-security/) for the controls used here.
+
+Local verification: **366 Python tests passed**, including customer/guest isolation, session rotation/revocation/expiry, own-recipient inbox commands, staff-route enforcement, account persistence, lost-response recovery and multiple-restaurant carts. Three existing JavaScript behavior checks and desktop/mobile account-flow browser checks passed. Actual v15 cloud acceptance passed separately: the original operator flow, public guest checkout through delivered food, 8 customer and 3 courier receipts for that guest order, guest-to-account history/address retention, two-account isolation, returning sign-in and an actual web-pod replacement. Both sessions were authenticated before replacement; afterward the same customer cookie remained valid, the delivered order was retained and the second account was still denied access. Five consecutive authenticated HTTPS responses were required after the new pod became ready. The run reported no JavaScript errors. The separate focused restart diagnostic also passed.
 
 ### Using the existing deployment from this computer
 
@@ -60,13 +80,21 @@ Use the existing checkout and protected local settings. Do not repeat first-depl
 Set-Location 'C:\Users\Ankit\Projects\CloudProject1-dev'
 $deployPython = '.\.local-build\solo-venv\Scripts\python.exe'
 $env:CLOUDSDK_COMPUTE_SSH_KEY_FILE = 'C:\Users\Ankit\Projects\CloudProject1-dev\.local-build\cloud\ssh\operator'
-& $deployPython -m deploy.lifecycle status
-& $deployPython -m deploy.lifecycle resume --execute
-& $deployPython -m deploy.lifecycle check
-& $deployPython .local-build/cloud/open_demo.py
+& {
+    $lifecycleText = & $deployPython -m deploy.lifecycle status
+    if ($LASTEXITCODE -ne 0) { throw 'Could not read cloud status. Stop and inspect authentication.' }
+    $lifecycleState = $lifecycleText | ConvertFrom-Json
+    if ($lifecycleState.phase -ne 'running') {
+        & $deployPython -m deploy.lifecycle resume --execute
+        if ($LASTEXITCODE -ne 0) { throw 'Resume did not pass. Stop before opening the demo.' }
+    }
+    & $deployPython -m deploy.lifecycle check
+    if ($LASTEXITCODE -ne 0) { throw 'Readiness did not pass. Stop and inspect the reported state.' }
+    & $deployPython .local-build/cloud/open_demo.py
+}
 ```
 
-The local `open_demo.py` helper opens a separate authenticated Chrome window using this Windows user's protected operator unlock data. It does not print or copy the password. That ignored helper and its unlock data are retained only on this computer, outside the public source archive. Another computer requires its own authorized operator configuration as described below. The HTTPS application also accepts the configured operator login directly.
+The local `open_demo.py` helper opens a separate public customer Chrome window. Add `--staff` to open the operator view using this Windows user's protected unlock data; the helper signs in without printing or copying the password. The ignored helper and unlock data stay on this computer, outside the public source archive. Another computer can browse the public URL, create its own customer account, or use separately authorized website operator access. If the CLI reports a reauthentication requirement, run `gcloud auth login` with the intended cloud account before retrying the interrupted lifecycle command. Website visitors do not need that CLI login.
 
 The measured rehearsal needed about 26 minutes to resume all dependencies. Start 30 to 45 minutes before a presentation and allow extra time for provider delays; this is a planning margin, not a startup guarantee. Keep the release and local configuration unchanged while paused. After completing a fresh demonstration order, close the separate browser and pause again:
 
@@ -120,7 +148,7 @@ This preserves application code. It does not restore previous orders, Kafka offs
 
 ### Final cloud source recovery
 
-A separate frozen archive of the final cloud source and this handoff, tagged `cloud-handoff-20261118-deploy`, is created after publication under `.local-build/recovery/cloud-verified-20261118-<commit>/verified-source.zip`. The local record `.local-build/cloud/final-source-recovery.json` gives its exact path, source commit/tag, byte count and SHA-256. A neighboring `.zip.sha256` file verifies the ZIP, and the ZIP includes a per-file `SOURCE_MANIFEST.json`.
+A separate frozen archive of the final cloud source and this handoff, tagged `cloud-handoff-20261118-customers`, is created after publication under `.local-build/recovery/cloud-verified-20261118-<commit>/verified-source.zip`. The local record `.local-build/cloud/final-source-recovery.json` gives its exact path, source commit/tag, byte count and SHA-256. A neighboring `.zip.sha256` file verifies the ZIP, and the ZIP includes a per-file `SOURCE_MANIFEST.json`.
 
 The archive excludes credentials, private configuration, Terraform state/plans, Git history, runtime data and Docker images. It preserves source, including deployment code and non-secret manifests. It supports rebuilding an independent local demo; recreating cloud infrastructure still requires authorized account configuration, state access and fresh/private secrets. Keep the cloud source tag and recovery archive alongside the older local baseline.
 
