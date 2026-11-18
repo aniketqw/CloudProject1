@@ -308,13 +308,15 @@ class Configuration(unittest.TestCase):
                 shutil.copyfile(ROOT/name, target)
             with patch("deploy.configure.ROOT", root):
                 output = render(CONFIG, outputs={"secret_versions": {"value": {"db-password": "7", "kafka": "8", "web-access": "9"}},
-                    "kafka_secret_version": {"value": "projects/assignment-test-123/secrets/food-kafka/versions/8"}})
+                    "kafka_secret_version": {"value": "projects/123456789012/secrets/food-kafka/versions/8"}})
             values = json.loads((output/"food-values.json").read_text())
             variables = json.loads((root/".local-build/config/team/cloud.tfvars.json").read_text())
             self.assertEqual(values["computeProfile"], variables["compute_profile"])
             self.assertEqual(values["resources"], PROFILES["demo"]["resources"])
             self.assertEqual(values["managedFlink"]["env"]["ANALYTICS_CONTROL_URI"], locations(CONFIG)["control"])
-            self.assertTrue(values["managedFlink"]["env"]["KAFKA_SECRET_VERSION"].endswith("/8"))
+            self.assertEqual(values["managedFlink"]["env"]["KAFKA_SECRET_VERSION"],
+                "projects/assignment-test-123/secrets/food-kafka/versions/8")
+            spec({**values["env"], **values["managedFlink"]["env"]})
             self.assertEqual(values["workloads"]["task-scheduler"]["replicas"], 2)
             self.assertEqual(sum(bool(v.get("hpa")) for v in values["workloads"].values()), 2)
     def test_offline_preview_never_constructs_cloud_clients(self):

@@ -49,7 +49,12 @@ def render(v,target="team",outputs=None):
     if outputs:
         versions=outputs["secret_versions"]["value"]
         values["secrets"]["versions"]={key:str(versions[name]) for key,name in {"db":"db-password","kafka":"kafka","web":"web-access"}.items()}
-        values["managedFlink"]["env"]["KAFKA_SECRET_VERSION"]=outputs["kafka_secret_version"]["value"]
+        pinned_kafka_version=str(versions["kafka"])
+        if not re.fullmatch(r"[1-9][0-9]*",pinned_kafka_version):
+            raise ValueError("The managed Kafka secret requires an explicit numeric version.")
+        # Secret Manager returns canonical project-number names. Use the configured
+        # project-ID alias so strict job scope checks preserve the same pinned secret.
+        values["managedFlink"]["env"]["KAFKA_SECRET_VERSION"]=f"projects/{project}/secrets/{prefix}-kafka/versions/{pinned_kafka_version}"
     write(base/"food-values.json",values)
     apps=[]
     for name,path,ns,wave,extra in [("food-platform","deploy/charts/platform","platform","0",{}),("food","deploy/charts/food","food","10",{"helm":{"valueFiles":["../../environments/"+target+"/food-values.json"]}})]:

@@ -1,6 +1,6 @@
 {
   "profile": "cloud",
-  "image": "us-central1-docker.pkg.dev/cloudproject-515012/food-app/app:cloud-release-20261118-v1",
+  "image": "us-central1-docker.pkg.dev/cloudproject-515012/food-app/app:cloud-release-20261118-v2",
   "imagePullPolicy": "IfNotPresent",
   "projectId": "cloudproject-515012",
   "publicOrigin": "https://food-136-69-72-1.sslip.io",
@@ -482,10 +482,10 @@
     "env": {
       "REGION": "us-central1",
       "DATAPROC_CLUSTER": "food-flink",
-      "KAFKA_SECRET_VERSION": "projects/18075721855/secrets/food-kafka/versions/1",
+      "KAFKA_SECRET_VERSION": "projects/cloudproject-515012/secrets/food-kafka/versions/1",
       "ANALYTICS_CHECKPOINT_URI": "gs://cloudproject-515012-food-checkpoints/flink",
-      "ANALYTICS_JAR_URI": "gs://cloudproject-515012-food-artifacts/restaurant-analytics-cloud-release-20261118-v1.jar",
-      "ANALYTICS_RELEASE": "cloud-release-20261118-v1",
+      "ANALYTICS_JAR_URI": "gs://cloudproject-515012-food-artifacts/restaurant-analytics-cloud-release-20261118-v2.jar",
+      "ANALYTICS_RELEASE": "cloud-release-20261118-v2",
       "ANALYTICS_CONTROL_URI": "gs://cloudproject-515012-food-checkpoints/lifecycle/analytics.json"
     }
   },
