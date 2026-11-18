@@ -490,8 +490,8 @@
     }
   },
   "loadTest": {
-    "enabled": false,
-    "runId": "reviewed-run-1",
+    "enabled": true,
+    "runId": "cloud-20261118-2",
     "env": {
       "VUS": "12",
       "RAMP": "1m",
