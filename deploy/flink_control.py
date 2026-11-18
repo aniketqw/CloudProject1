@@ -1,6 +1,9 @@
 """Bounded, credential-free Flink stop-with-savepoint probe executed on its private master."""
 import base64
 import json
+import ipaddress
+import socket
+import subprocess
 import re
 import sys
 import time
@@ -17,6 +20,35 @@ def application_id(job):
     if len(found) != 1:
         raise ValueError("Expected exactly one active YARN application.")
     return found.pop()
+
+def private_rest_base(url, node_hosts, resolve=socket.gethostbyname):
+    parsed = urlsplit(url)
+    try:
+        port = parsed.port
+        if (parsed.scheme != "http" or not parsed.hostname or parsed.username or parsed.password
+                or parsed.query or parsed.fragment or parsed.path not in {"", "/"}
+                or port is None or not 1024 <= port <= 65535):
+            raise ValueError()
+        addresses = {resolve(host.rstrip(".")) for host in node_hosts}
+        address = resolve(parsed.hostname.rstrip("."))
+        ip = ipaddress.ip_address(address)
+        if address not in addresses or not ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise ValueError()
+    except (ValueError, OSError):
+        raise ValueError("Flink REST must use a private member of the selected YARN cluster.") from None
+    return "http://" + ("[" + address + "]" if ":" in address else address) + ":" + str(port)
+
+def yarn_rest_base(app):
+    # YARN's web proxy rejects POST. The CLI reports the original private AM URL.
+    result = subprocess.run(["yarn", "application", "-status", app], capture_output=True,
+                            encoding="utf-8", timeout=45, check=True)
+    urls = re.findall(r"(?m)^\s*Tracking-URL\s*:\s*(http://[^\s]+)\s*$", result.stdout)
+    if len(urls) != 1:
+        raise ValueError("The selected YARN application has no unique private REST endpoint.")
+    with urlopen("http://127.0.0.1:8088/ws/v1/cluster/nodes", timeout=20) as response:
+        nodes = json.loads(response.read())
+    hosts = [row["nodeHostName"] for row in (nodes.get("nodes") or {}).get("node", [])]
+    return private_rest_base(urls[0], hosts)
 
 def stop(payload, request=None, clock=time.monotonic, sleep=time.sleep):
     app = payload.get("application_id")
@@ -40,7 +72,9 @@ def stop(payload, request=None, clock=time.monotonic, sleep=time.sleep):
         app = matches[0]["id"]
     if not app:
         raise ValueError("YARN application was not identified.")
-    base = "http://127.0.0.1:8088/proxy/" + app
+    if request is None and not job_name:
+        raise ValueError("A real stop requires the explicit owned YARN application name.")
+    base = yarn_rest_base(app) if request is None else ""
     def http(path, method="GET", body=None):
         raw = None if body is None else json.dumps(body).encode()
         req = Request(base + path, data=raw, method=method, headers={"Content-Type": "application/json"})

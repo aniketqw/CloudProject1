@@ -431,6 +431,17 @@ class AnalyticsProtocol(unittest.TestCase):
             with self.assertRaises(ValueError) as error:
                 spec({**ENV, **changed})
             self.assertNotIn("synthetic-private-marker", str(error.exception))
+    def test_direct_rest_endpoint_is_a_private_yarn_member(self):
+        from deploy.flink_control import private_rest_base
+        hosts = {"master.internal": "10.40.0.2", "worker.internal": "10.40.0.3", "10.40.0.2": "10.40.0.2", "10.40.0.3": "10.40.0.3"}
+        self.assertEqual(private_rest_base("http://10.40.0.2:40419", ["master.internal"], hosts.__getitem__), "http://10.40.0.2:40419")
+        self.assertEqual(private_rest_base("http://worker.internal:40420/", ["master.internal", "worker.internal"], hosts.__getitem__), "http://10.40.0.3:40420")
+    def test_direct_rest_rejects_proxy_credentials_and_foreign_hosts(self):
+        from deploy.flink_control import private_rest_base
+        resolve = lambda name: "10.40.0.2" if name in {"master.internal", "10.40.0.2"} else "8.8.8.8"
+        for url in ("http://user:synthetic@master.internal:40419", "http://master.internal:40419/proxy/application_1_1", "http://master.internal:40419?token=synthetic", "http://foreign.test:40419", "http://master.internal:80", "https://master.internal:40419"):
+            with self.assertRaises(ValueError) as error:private_rest_base(url, ["master.internal"], resolve)
+            self.assertNotIn("synthetic", str(error.exception))
     def test_yarn_discovery_never_guesses_between_applications(self):
         job = {"yarnApplications": [{"name": "Restaurant analytics", "state": "RUNNING",
                                     "trackingUrl": "http://private:8088/proxy/application_123_0001/"}]}

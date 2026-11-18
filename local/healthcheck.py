@@ -2,8 +2,15 @@
 import json
 import os
 import sys
+from pathlib import Path
 from urllib.request import urlopen
 
+
+# Pure heartbeat probes must not import the applications they observe. Importing
+# ORM/cloud modules here consumed more than the cloud probe timeout under load.
+HEARTBEAT_FILES = {name: Path("/tmp/" + name + "-heartbeat.json") for name in (
+    "notification-worker", "notification-consumer", "notification-reconcile",
+    "kitchen-stage-worker", "kitchen-sync", "delivery-worker", "payment-worker")}
 
 def main():
     service = sys.argv[1]
@@ -27,27 +34,19 @@ def main():
             raise RuntimeError("Notification API is not ready.")
     elif service in {"notification-worker", "notification-consumer", "notification-reconcile"}:
         import time
-        if service == "notification-worker":
-            from notification_service.worker import HEARTBEAT
-        elif service == "notification-consumer":
-            from notification_service.consumer import HEARTBEAT
-        else:
-            from notification_service.reconcile import HEARTBEAT
+        HEARTBEAT = HEARTBEAT_FILES[service]
         data=json.loads(HEARTBEAT.read_text(encoding="utf-8"))
         if time.time()-data["at"]>15 or not data.get("connected",data.get("running",False)):
             raise RuntimeError("Notification process heartbeat is stale.")
     elif service in {"kitchen-stage-worker", "kitchen-sync"}:
         import time
-        if service == "kitchen-stage-worker":
-            from kitchen_workflow.worker import HEARTBEAT
-        else:
-            from kitchen_workflow.sync import HEARTBEAT
+        HEARTBEAT = HEARTBEAT_FILES[service]
         data = json.loads(HEARTBEAT.read_text(encoding="utf-8"))
         if time.time() - data["at"] > 15 or not data.get("connected", data.get("running", False)):
             raise RuntimeError("Kitchen worker heartbeat is stale.")
     elif service == "delivery-worker":
         import time
-        from delivery_assignment_service.worker import HEARTBEAT
+        HEARTBEAT = HEARTBEAT_FILES[service]
         data = json.loads(HEARTBEAT.read_text(encoding="utf-8"))
         if time.time() - data["at"] > 15 or not data["connected"]:
             raise RuntimeError("Delivery worker heartbeat is stale.")
@@ -64,7 +63,7 @@ def main():
             db.session.query(Event.event_id).limit(1).all()
     elif service == "payment-worker":
         import time
-        from payment_service.worker import HEARTBEAT
+        HEARTBEAT = HEARTBEAT_FILES[service]
         data = json.loads(HEARTBEAT.read_text(encoding="utf-8"))
         if time.time() - data["at"] > 10 or not data["connected"]:
             raise RuntimeError("Payment worker heartbeat is stale.")
