@@ -4,13 +4,13 @@ Prepared: 14 November 2026. Updated: 18 November 2026.
 
 ## 1. What is ready
 
-The preserved, verified application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. The smaller capacity profile and lifecycle helpers were published to `main` in commit **2f05f2f76f2bacf5ede91378503d2345f7cc6dcb**. Start cloud deployment from the current `origin/main`, which includes those helpers; use the older baseline only for independent source recovery. Real-cloud validation is still pending.
+The preserved local application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. Earlier capacity and lifecycle helpers were published to `main` in commit **2f05f2f76f2bacf5ede91378503d2345f7cc6dcb**. The verified cloud deployment adds managed-service fixes on branch `codex/cloud-deploy-20261117`, with application release tag **cloud-release-20261118-v11** at commit **7e90c6de257912e4963f1dc3d5f0291533666673**. Use that cloud source for deployment or presentation recovery; use the older frozen baseline for independent local recovery. The current deployment uses project `cloudproject-515012` in `us-central1` / `us-central1-a`. The old source backups remain intact.
 
 The eight assigned services are implemented: Customer, Restaurant, Order, Task Scheduler, Kitchen Workflow, Delivery Assignment, Payment and Notification. Restaurant Service includes Flink streaming analytics. The UI has separate customer, kitchen, courier and operations pages, interactive charts and an execution graph showing real task prerequisites.
 
 | Local verification completed | Result |
 | --- | --- |
-| Python application regressions | 332 passed in the updated source |
+| Python application regressions | 341 passed in the final source |
 | Notification function contracts | 6 passed |
 | JavaScript behavior checks | 3 passed |
 | End-to-end ordering, payment retry, kitchen, courier and notification flow | Passed |
@@ -18,11 +18,68 @@ The eight assigned services are implemented: Customer, Restaurant, Order, Task S
 | Prometheus targets and local observability check | 12 targets; passed |
 | Browser charts, graph interaction and live updates | Checked |
 
-The updated Python suite includes the lifecycle and database-pool contracts. Full Compose/browser/Flink execution evidence listed above was obtained for the preserved application baseline; the smaller managed-cloud profile has not been executed on GCP. These results verify local behavior and contracts. **GCP deployment, managed-service integration, public HTTPS and final cloud load/HPA acceptance remain to be completed before deployment can be considered finished.** Payments and notification delivery remain simulations for this assignment. Couriers use synthetic identities and explicit manual/scripted actions.
+The final source has **341 passing Python tests**, including the actual k6 export regression, lifecycle and bounded database-pool contracts. The preserved baseline retains its original Compose/Flink evidence. The live cloud checks below are separate measurements. Payments and notification delivery remain simulations for this assignment; the cloud function confirms in-app transport receipts without sending real email or SMS. Couriers use synthetic identities and explicit manual/scripted actions.
+
+### Current cloud instance and evidence (18 November 2026)
+
+- Public HTTPS address: [Supper](https://food-136-69-72-1.sslip.io).
+- **Final state: paused to save credits.** Resume before opening the app. Local Docker Desktop is stopped and is unnecessary for cloud resume.
+- Final source-and-documentation tag: `cloud-handoff-20261118`; the active application/GitOps release remains `cloud-release-20261118-v11`.
+- Source branch: `codex/cloud-deploy-20261117`; current GitOps revision: `cloud-release-20261118-v11`.
+- Application image release: `cloud-release-20261118-v11`; analytics artifact release: `cloud-release-20261118-v3`. Web changes preserve the running analytics identity.
+- Capacity: three `e2-standard-2` GKE workers, one `e2-standard-2` analytics VM and `db-g1-small` SQL. No larger compute profile was selected.
+- Credentials are supplied by pinned Secret Manager versions. Private configuration, operator unlock data, state, plans and raw evidence stay outside Git.
+
+| Actual cloud verification | Observed result |
+| --- | --- |
+| HTTPS access gate, customer/menu/cart and checkout replay | Passed |
+| Payment decline/retry, kitchen stages, no-courier wait and pickup AND dependency | Passed |
+| Courier pickup/delivery and customer/courier receipt-confirmed notifications | Passed |
+| Desktop/mobile charts, graph inspector, dependency highlighting and zoom | Passed; black `rgb(0,0,0)` on cream `rgb(247,242,231)`; no page overflow or JavaScript errors |
+| Managed Flink | Real checkpoints and committed results verified. A driver memory-protection failure was recovered from retained checkpoint 239; the corrected run reports restored state and new completed checkpoints. |
+| Worker/scheduler replacement | Real task changed `ABANDONED` to `SUCCEEDED` under a new owner; a new scheduler epoch was elected |
+| Observability | All 15 observed application scrape targets healthy; structured request logs found in Google Cloud Logging |
+| 60-VU sustained probe | 26,437 requests; zero HTTP/business errors; both APIs scaled from one to four; **failed** the two-second latency target with p95 6,658.79 ms |
+| 12-VU sustained probe | **Passed**: 31,485 requests, zero HTTP/business errors, p95 983.80 ms; Customer 2 to 4 replicas, Order 3 to 4; 62 saved samples |
+| Normal savepoint pause/resume | Passed: canonical savepoint restored, both Flink tasks running and 102 new checkpoints observed; old order, workspace and committed windows retained. Resume took 26 minutes 13 seconds. |
+| Final release acceptance | Passed on `v11`: fresh delivered order, 10 customer and 3 courier notifications, one durable attempt each; desktop/mobile browser checks passed. |
+| Final fresh analytics | Passed: two committed windows, distinct-order counting and interactive stream selection; restored Flink run had 188 new completed checkpoints before final pause. |
+| Final paused state | Passed: zero actual/target GKE workers, SQL `NEVER` with no pending operations, analytics `STOPPED`, all 24 application Deployments and ZooKeeper at zero; GitOps and analytics submission suspended, savepoint metadata verified and operator lease released. Final pause took 9 minutes 39 seconds. |
+
+The final readiness fix was measured on the live `v11` container: the Notification reconciliation heartbeat probe completed in 0.106 to 0.222 seconds against its eight-second timeout, with the deployed source hash matching the verified source. Heartbeat freshness and connectivity checks remain enforced; SQL-backed outbox and scheduler-owner checks remain unchanged.
+
+The small analytics VM also hosts managed Hadoop daemons. The deployment therefore sets the Flink JobManager process to `768m` and TaskManager process to `1024m`; the recovered run used 1,792 MiB of YARN allocation. Keep the existing global Java options from the managed image: adding a nested `env.java.opts.client` conflicts with its legacy scalar `env.java.opts`. The launcher uses the separate `env.java.default-opts.client` namespace. See [Flink memory configuration](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/deployment/config/) and [Google memory-protection troubleshooting](https://docs.cloud.google.com/managed-spark/docs/support/troubleshoot-oom-errors). A completed external checkpoint is a crash-recovery input. The separate normal canonical-savepoint pause/resume rehearsal also passed, including verification of restored Flink state and retained application data.
+
+Private evidence is under `.local-build/cloud/` and `.local-build/evidence/`. The first probe's full metric samples were lost when its old summary exporter rejected a literal newline escape; its measured k6 summary and replica-transition log are retained. The fixed exporter saves samples throughout subsequent runs and still marks failed Jobs or invalid timing as failures.
+
+### Using the existing deployment from this computer
+
+Use the existing checkout and protected local settings. Do not repeat first-deployment provisioning just to start the presentation. Local Docker Desktop is not required to run these cloud lifecycle commands.
+
+```powershell
+Set-Location 'C:\Users\Ankit\Projects\CloudProject1-dev'
+$deployPython = '.\.local-build\solo-venv\Scripts\python.exe'
+$env:CLOUDSDK_COMPUTE_SSH_KEY_FILE = 'C:\Users\Ankit\Projects\CloudProject1-dev\.local-build\cloud\ssh\operator'
+& $deployPython -m deploy.lifecycle status
+& $deployPython -m deploy.lifecycle resume --execute
+& $deployPython -m deploy.lifecycle check
+& $deployPython .local-build/cloud/open_demo.py
+```
+
+The local `open_demo.py` helper opens a separate authenticated Chrome window using this Windows user's protected operator unlock data. It does not print or copy the password. That ignored helper and its unlock data are retained only on this computer, outside the public source archive. Another computer requires its own authorized operator configuration as described below. The HTTPS application also accepts the configured operator login directly.
+
+The measured rehearsal needed about 26 minutes to resume all dependencies. Start 30 to 45 minutes before a presentation and allow extra time for provider delays; this is a planning margin, not a startup guarantee. Keep the release and local configuration unchanged while paused. After completing a fresh demonstration order, close the separate browser and pause again:
+
+```powershell
+& $deployPython -m deploy.lifecycle pause --execute
+& $deployPython -m deploy.lifecycle status
+```
+
+The app is unavailable while paused. GCP credits were reported to expire on 29 November 2026, with the presentation on 24 November. Check those dates and the separate Confluent trial/billing status personally; GCP credit does not pay Confluent charges.
 
 ### Implementation scope and deployment responsibilities
 
-The agreed application features and deployment helpers are implemented. No additional service, UI page or business workflow is planned for the current scope. The deployment operator's work is to configure accounts and resources, publish the release, deploy it and collect real cloud evidence. The first GCP deployment may still require focused configuration changes or bug fixes; the locally passing tests do not establish that every managed-service integration works.
+The agreed application features, deployment helpers and managed-service fixes are implemented, published and exercised on the cloud instance above. No additional service, UI page or business workflow is planned for this scope. For another account or a fresh environment, the operator must still configure permissions/secrets, review infrastructure plans, deploy and collect new evidence; results from this instance do not automatically verify another deployment.
 
 | Area | Already supplied | Deployment responsibility |
 | --- | --- | --- |
@@ -60,6 +117,12 @@ git rev-parse local-verified-f82c4da
 If later changes break the code, use the frozen source directory or extract the ZIP to a separate working folder. You can then build and run that baseline yourself using the local commands in section 3. The local demo does not require GCP or Confluent access.
 
 This preserves application code. It does not restore previous orders, Kafka offsets, cloud resources or database contents. The local Firestore emulator holds its data in memory; replacing/stopping it can lose its current contents. Do not use `docker compose down -v` or Docker volume pruning to recover code.
+
+### Final cloud source recovery
+
+A separate frozen archive of the final cloud source and this handoff, tagged `cloud-handoff-20261118`, is created after publication under `.local-build/recovery/cloud-verified-20261118-<commit>/verified-source.zip`. The local record `.local-build/cloud/final-source-recovery.json` gives its exact path, source commit/tag, byte count and SHA-256. A neighboring `.zip.sha256` file verifies the ZIP, and the ZIP includes a per-file `SOURCE_MANIFEST.json`.
+
+The archive excludes credentials, private configuration, Terraform state/plans, Git history, runtime data and Docker images. It preserves source, including deployment code and non-secret manifests. It supports rebuilding an independent local demo; recreating cloud infrastructure still requires authorized account configuration, state access and fresh/private secrets. Keep the cloud source tag and recovery archive alongside the older local baseline.
 
 ## 3. Running the local baseline later
 
@@ -137,7 +200,7 @@ The supplied analytics job runs on GCP Dataproc. No Confluent-managed Flink serv
 
 ## 5. Prepare the deployment checkout and tools
 
-Work on a deployment branch based on the current published `main`, keeping the recovery baseline tag intact. The commands below are for the deployment operator to run; this handoff has not created that branch or deployed anything.
+For a fresh deployment, use a deployment branch based on the current published source and keep the recovery baseline tag intact. The existing instance uses the recorded deployment branch and immutable releases above. To operate that instance, keep its existing configuration and use the lifecycle commands; do not rerun initial provisioning merely to resume it.
 
 On a new machine, first clone into a new folder. Skip this block if already in the intended checkout:
 
@@ -150,11 +213,11 @@ From that checkout, check for local changes before switching branches. Preserve 
 
 ```powershell
 git status --short
-git fetch origin
-git switch -c cloud-deploy origin/main
+git fetch origin --tags
+git switch -c codex/cloud-rebuild cloud-release-20261118-v11
 ```
 
-If `cloud-deploy` already exists, inspect/use it instead of overwriting it. Confirm its source includes `deploy/lifecycle.py` and `deploy/profiles.json` before proceeding. The older recovery commit does not include the later lifecycle helpers.
+If `codex/cloud-rebuild` already exists, inspect/use it instead of overwriting it. Confirm its source includes `deploy/lifecycle.py` and `deploy/profiles.json` before proceeding. The older recovery commit does not include the later lifecycle helpers.
 
 Install Git, Python 3.12, Docker with Linux containers, Terraform 1.6 or newer, Helm, Google Cloud CLI, kubectl and the GKE authentication plugin. Start Docker Desktop before building release artifacts. Node.js is needed for the local JavaScript verification scripts. Java/Maven compilation runs inside the build container.
 
@@ -300,7 +363,7 @@ git diff --cached --check
 # Inspect the staged public configuration privately and scan it for secrets.
 git commit -m "Configure first cloud deployment"
 git tag cloud-release-v1
-git push -u origin cloud-deploy
+git push -u origin codex/cloud-rebuild
 git push origin cloud-release-v1
 ```
 
@@ -458,7 +521,7 @@ Published to `main` on 15 November 2026. The default `compute_profile` is `demo`
 
 The single-node managed cluster is suitable for a small demonstration, but it is not a multi-machine analytics availability design. See [Google's single-node cluster documentation](https://docs.cloud.google.com/managed-spark/docs/concepts/configuring-clusters/single-node-clusters).
 
-The demo capacity has passed local configuration, contract and regression checks. It has **not** yet passed a live GKE sizing/load test. Do not claim its latency or cloud recovery requirements passed until they are measured. If the required cloud test does not fit, review the cause and obtain the project owner's agreement before selecting larger capacity. The optional `standard` profile requires `--allow-standard-capacity` on the cloud stage; it is never selected automatically.
+The demo capacity has passed local configuration, contract and regression checks and the live functional checks above. The 60-VU GKE probe failed latency despite zero request/business errors; the smaller 12-VU probe passed with p95 983.80 ms and both APIs scaling out. This is the measured presentation envelope. The canonical-savepoint pause/resume rehearsal passed separately. The load measurements used application image `cloud-release-20261118-v6`; later changes affect deployment controls and readiness probes, while the measured Customer and Order API behavior is unchanged. Do not treat successful scaling alone as a latency pass. If the required cloud test does not fit, review the cause and obtain the project owner's agreement before selecting larger capacity. The optional `standard` profile requires `--allow-standard-capacity` on the cloud stage; it is never selected automatically.
 
 For an existing deployment, changing the analytics topology or machine type can replace its Dataproc cluster. This profile is intended for a reviewed first deployment. Do not apply a replacement plan over existing data without a separate savepoint/migration review.
 
@@ -579,8 +642,8 @@ Stopping compute is not a zero-bill guarantee. Retained database storage, disks,
 
 Use Basic Kafka for the demonstration, keep data retention deliberate, check actual GCP/Confluent usage and credit expiry, and avoid extra managed connectors or processing products that the application does not use. Trial credits can cover eligible usage only while they remain valid. The cost estimates discussed during planning are not a provider quote or a proven operating cost.
 
-### Remaining cloud acceptance
+### Recorded acceptance and presentation checks
 
-The deployment operator must still verify actual IAM/IAP access, infrastructure provisioning, DNS/certificate readiness, the managed function/receipt path, the complete order flow, managed Flink state restoration and both HPAs under the required sustained load. Run a full pause/resume rehearsal before presentation day.
+Actual IAM/IAP access, infrastructure provisioning, DNS/certificate readiness, managed function receipts, the complete order flow, restored Flink state and both HPAs have been checked on this cloud instance. Keep the measured load envelope and the failed 60-VU latency result visible. Before the presentation, resume early, run lifecycle readiness and complete a fresh order; account/trial availability and future provider startup time still need to be checked on the day.
 
 The original source-only baseline remains intact. An additional source-only snapshot of the budget/lifecycle implementation, captured before its publication, is kept locally at `.local-build/recovery/budget-lifecycle-source.zip` with its SHA-256 manifest. Later documentation edits are not retroactively included in that frozen snapshot. It contains source/configuration only, without images, credentials, Terraform state or runtime data.
