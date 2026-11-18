@@ -58,6 +58,19 @@ class PublicAccess(unittest.TestCase):
         response=self.a.get('/');self.assertEqual(response.status_code,200);self.assertNotIn('WWW-Authenticate',response.headers)
         html=response.get_data(as_text=True);self.assertIn('href="/signin"',html);self.assertNotIn('href="/kitchen"',html);self.assertNotIn('href="/operations"',html)
         self.assertEqual(self.a.get('/api/restaurants').status_code,200);self.assertEqual(self.a.get('/api/restaurants/paper/menu').status_code,200);self.assertFalse(self.backend.people)
+    def test_auth_forms_fail_closed_before_javascript_is_ready(self):
+        for page,endpoint in [('/signup','signup'),('/signin','signin'),('/staff/sign-in','staff')]:
+            html=self.a.get(page).get_data(as_text=True)
+            form=re.search(r'<form id="auth-form"[^>]+>',html).group(0)
+            self.assertIn('method="post"',form)
+            self.assertIn('action="/api/auth/'+endpoint+'"',form)
+            self.assertRegex(html,r'<button[^>]+type="submit"[^>]+disabled')
+            self.assertEqual(self.a.get('/api/auth/'+endpoint).status_code,405)
+            # A native submission with no script/CSRF handler must not authenticate.
+            response=self.a.post('/api/auth/'+endpoint,data={'email':'blocked@example.test','password':PASSWORD})
+            self.assertEqual(response.status_code,400)
+        with self.app.extensions['web_state'].connection() as connection:
+            self.assertEqual(connection.execute('SELECT COUNT(*) FROM web_accounts').fetchone()[0],0)
     def test_guest_checkouts_and_workspace_ids_are_isolated(self):
         wa=self.guest(self.a);wb=self.guest(self.b);self.assertNotEqual(wa['customer_id'],wb['customer_id'])
         oid=self.order(self.a);self.assertEqual(self.b.get('/api/orders/'+oid).status_code,404)

@@ -103,7 +103,7 @@ export async function initShell(ctx){
     if(ctx.auth.role!=='operator'){const create=$('#create-workspace');if(create&&ctx.workspace)create.hidden=true;}
     const signout=$('#signout-button');if(signout)signout.addEventListener('click',async()=>{try{await api('/api/auth/signout',{method:'POST',body:{}});location.assign('/');}catch(error){toast(error.message,true);}});
   }
-  shellScope=ctx;
+  shellScope=document.body.dataset.page==='auth'?null:ctx;
   const mobile=matchMedia('(max-width:760px)'),sidebar=$('#sidebar'),toggle=$('#menu-toggle');
   function navigation(open=false,focus=false){
     open=mobile.matches&&open;sidebar.classList.toggle('open',open);sidebar.inert=mobile.matches&&!open;
@@ -140,7 +140,7 @@ export async function initShell(ctx){
   $('#create-workspace').addEventListener('click',async event=>{
     try{if(ctx.auth?.public_access&&ctx.auth.role!=='operator'){await api('/api/auth/guest',{method:'POST',body:{}});}else{await action('/api/workspaces',{},event.currentTarget,'Your demo workspace is ready.');}location.reload();}catch{}
   });
-  if(ctx.workspace){
+  if(ctx.workspace&&document.body.dataset.page!=='auth'){
     try{
       const result=await api('/api/notifications'+(document.body.dataset.role==='courier'?'?recipient=courier':''));
       updateUnread(result.recipient_unread_count||0);

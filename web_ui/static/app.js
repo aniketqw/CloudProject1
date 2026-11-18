@@ -9,10 +9,12 @@ import {execution} from './graph.js';
 const pages={auth,stream,discover,menu,checkout,orders,tracking,account,notifications,kitchen,'menu-editor':menuEditor,courier,fleet,services,operations,execution};
 async function main(){
   try{
+    const pageName=document.body.dataset.page;
+    if(pageName==='auth')auth();
     const ctx=await context();
     await initShell(ctx);
     const page=pages[document.body.dataset.page];
-    if(page){await page(ctx);if(['discover','menu','checkout','account','menu-editor'].includes(document.body.dataset.page)&&!document.querySelector('.workspace-onboarding'))markUpdated();}
+    if(page&&pageName!=='auth'){await page(ctx);if(['discover','menu','checkout','account','menu-editor'].includes(document.body.dataset.page)&&!document.querySelector('.workspace-onboarding'))markUpdated();}
   }catch(error){disconnected(error);toast(error.message,true);}
 }
 main();
