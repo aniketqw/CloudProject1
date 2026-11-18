@@ -89,7 +89,8 @@ export function workspaceRequired(ctx,target='#main'){
   if(ctx.workspace?.status==='READY')return true;
   const root=$(target);
   [...root.children].forEach(child=>{if(!child.classList.contains('page-heading')&&child.id!=='connection-banner')child.hidden=true;});
-  root.insertAdjacentHTML('beforeend','<section class="empty-state workspace-onboarding">'+icon('bag')+'<span class="eyebrow">A SMALL START, A REAL JOURNEY</span><h3>Your workspace is waiting.</h3><p>Create a fictional diner, a kitchen, and two offline couriers. Then take a real local order from menu to doorstep.</p><button class="button primary" data-open-workspace>Choose a demo workspace ↗</button></section>');
+  const customer=ctx.auth?.public_access&&ctx.auth.role!=='operator';
+  root.insertAdjacentHTML('beforeend','<section class="empty-state workspace-onboarding">'+icon('bag')+'<span class="eyebrow">A SMALL START, A REAL JOURNEY</span><h3>'+(customer?'Your table is waiting.':'Your workspace is waiting.')+'</h3><p>'+(customer?'Browse the menu and add a meal, continue as a guest, or sign in for your saved details. Your orders and addresses stay private.':'Create a fictional diner, a kitchen, and two offline couriers. Then take a real local order from menu to doorstep.')+'</p><button class="button primary" data-open-workspace>'+(customer?'Continue as a guest':'Choose a demo workspace')+' ↗</button></section>');
   return false;
 }
 export async function initShell(ctx){
@@ -98,6 +99,10 @@ export async function initShell(ctx){
     $('.page-heading h1').textContent='Your courier notes.';
   }
   $('#workspace-name').textContent=ctx.workspace?ctx.workspace.name:'Choose a workspace';
+  if(ctx.auth?.public_access){
+    if(ctx.auth.role!=='operator'){const create=$('#create-workspace');if(create&&ctx.workspace)create.hidden=true;}
+    const signout=$('#signout-button');if(signout)signout.addEventListener('click',async()=>{try{await api('/api/auth/signout',{method:'POST',body:{}});location.assign('/');}catch(error){toast(error.message,true);}});
+  }
   shellScope=ctx;
   const mobile=matchMedia('(max-width:760px)'),sidebar=$('#sidebar'),toggle=$('#menu-toggle');
   function navigation(open=false,focus=false){
@@ -133,7 +138,7 @@ export async function initShell(ctx){
     try{await action('/api/context',{workspace_id:button.dataset.workspace},button,'Workspace selected.');location.reload();}catch{}
   });
   $('#create-workspace').addEventListener('click',async event=>{
-    try{await action('/api/workspaces',{},event.currentTarget,'Your demo workspace is ready.');location.reload();}catch{}
+    try{if(ctx.auth?.public_access&&ctx.auth.role!=='operator'){await api('/api/auth/guest',{method:'POST',body:{}});}else{await action('/api/workspaces',{},event.currentTarget,'Your demo workspace is ready.');}location.reload();}catch{}
   });
   if(ctx.workspace){
     try{

@@ -38,7 +38,11 @@ export async function menu(ctx){
   }
   $('#menu-items').addEventListener('click',async event=>{
     const button=event.target.closest('[data-item]');if(!button)return;
-    if(!ctx.workspace){toast('Create or choose a demo workspace before adding a meal.',true);$('[data-open-workspace]').click();return;}
+    if(!ctx.workspace){
+      if(ctx.auth?.public_access&&ctx.auth.role!=='operator'){
+        try{Object.assign(ctx,await api('/api/auth/guest',{method:'POST',body:{}}));$('#workspace-name').textContent='Your table';}catch(error){toast(error.message,true);return;}
+      }else{toast('Create or choose a demo workspace before adding a meal.',true);$('[data-open-workspace]').click();return;}
+    }
     try{await action('/api/cart',{restaurant_id:rid,item_id:button.dataset.item,quantity:Number(button.dataset.quantity)},button,'Cart updated.');await refresh();}catch{}
   });
   $('#cart-summary').addEventListener('click',async event=>{const button=event.target.closest('#clear-cart');if(!button)return;if(!await confirmAction('Clear this cart?','This removes the selected meals from your cart. Saved orders are kept.','Clear cart'))return;try{await action('/api/cart/clear',{},button,'Cart cleared.');await refresh();}catch{}});
@@ -51,6 +55,14 @@ export async function checkout(ctx){
   $('#checkout-summary').innerHTML=cartMarkup(cart,true);
   $('#back-to-menu').href=cart.restaurant?'/restaurants/'+cart.restaurant.restaurant_id:'/';
   $('#checkout-addresses').innerHTML=profile.addresses.length?profile.addresses.map(row=>'<label class="address-radio"><input type="radio" name="address" value="'+row.id+'" '+(row.is_default?'checked':'')+'><span><strong>'+esc(row.label)+'</strong><p>'+esc(row.line1)+'<br>'+esc(row.city)+' '+esc(row.postal_code)+'</p></span></label>').join(''):empty('A doorstep is missing.','Save a fictional delivery address before placing this order.','/account','Add an address','pin');
+  const quickAddress=$('#quick-address-form');
+  if(quickAddress&&!profile.addresses.length){
+    quickAddress.hidden=false;
+    quickAddress.addEventListener('submit',async event=>{
+      event.preventDefault();const address={...Object.fromEntries(new FormData(quickAddress)),label:'Delivery address',is_default:true};
+      try{await action('/api/addresses',{action:'add',address},quickAddress.querySelector('button'),'Delivery address saved.');location.reload();}catch{}
+    });
+  }
   const pending=cart.pending_checkout;
   if(pending?.notification_scenario)$('#notification-scenario').value=pending.notification_scenario;
   if(pending){$('#checkout-pending').hidden=false;$('#checkout-pending').textContent='A previous order submission is unconfirmed. This button safely reuses that exact submission; it will not create another order.';$('#place-order').textContent='Resolve the pending order ↗';}
@@ -75,7 +87,7 @@ export async function orders(ctx){
     $('#order-list').innerHTML=visible.length?visible.map(row=>'<article class="order-card"><div><span class="eyebrow">ORDER '+short(row.order_id)+'</span><h3>'+human(row.status)+'</h3><p>'+date(row.created_at)+'</p></div><div><div class="order-price">'+money(row.total_minor)+'</div>'+badge(row.status)+'</div><div><span class="caption">Latest confirmed progress</span><a class="button" href="/orders/'+row.order_id+'">View your order ↗</a></div></article>').join(''):empty('Your next meal starts here.','No orders match this view yet. Choose a kitchen and begin a real local order.','/','Discover kitchens');
     $('#load-orders').hidden=!next;
   }
-  async function refresh(){const value=await paged('/api/orders','orders',pageCount);rows=value.orders;next=value.next_after;render();}
+  async function refresh(){const value=await paged('/api/orders','orders',pageCount);rows=value.orders;next=value.next_after;if($('#orders-scope-note'))$('#orders-scope-note').hidden=!value.truncated;render();}
   $('#order-tabs').addEventListener('click',event=>{const button=event.target.closest('[data-filter]');if(!button)return;filter=button.dataset.filter;$$('#order-tabs button').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button);});render();});
   $('#load-orders').addEventListener('click',async()=>{try{const value=await api('/api/orders?after='+next);rows.push(...value.orders);next=value.next_after;pageCount++;render();}catch(e){toast(e.message,true);}});
   poll(refresh);
@@ -175,7 +187,7 @@ export async function notifications(ctx){
     $('#notification-list').innerHTML=visible.length?visible.map(row=>'<article class="notification-card '+(row.unread?'unread':'')+'"><div class="notification-icon">'+icon(row.recipient_type==='courier'?'bike':'bell')+'</div><div><h3>'+esc(row.title)+'</h3><p>'+esc(row.body)+'</p><div class="notification-meta">'+badge(row.state)+'<span>Order '+short(row.order_id)+'</span><span>'+esc(date(row.sent_at||row.created_at))+'</span><span>'+row.attempt_count+' transport attempts · round '+row.retry_round+'</span>'+(row.read_at?'<span>Read '+time(row.read_at)+'</span>':'')+'</div></div><div class="notification-actions">'+(row.unread?'<button class="button small-button" data-note="'+row.notification_id+'" data-action="read">Mark read</button>':'')+(row.state==='FAILED'?'<button class="button small-button" data-note="'+row.notification_id+'" data-action="retry">Retry safely ↗</button>':'')+'</div></article>').join(''):empty(filter==='unread'?'All caught up.':'Nothing here, just yet.','Progress notes appear after a subscribed order commits a stage. Queued messages are not counted as unread delivery.',null,null,'bell');
     $('#load-notifications').hidden=!next;
   }
-  async function refresh(){const value=await paged('/api/notifications?recipient='+recipient,'notifications',pageCount);rows=value.notifications;next=value.next_after;$('#unread-count').textContent=value.recipient_unread_count+' unread';updateUnread(value.recipient_unread_count);render();}
+  async function refresh(){const value=await paged('/api/notifications?recipient='+recipient,'notifications',pageCount);rows=value.notifications;next=value.next_after;if($('#notifications-scope-note'))$('#notifications-scope-note').hidden=!value.truncated;$('#unread-count').textContent=value.recipient_unread_count+' unread';updateUnread(value.recipient_unread_count);render();}
   const reload=poll(refresh);
   $('#inbox-tabs').addEventListener('click',event=>{const button=event.target.closest('[data-filter]');if(!button)return;filter=button.dataset.filter;$$('#inbox-tabs button').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button);});render();});
   $('#notification-list').addEventListener('click',async event=>{

@@ -14,3 +14,6 @@
 .charts-grid>.panel+.panel,.execution-layout>.panel+.panel{margin-top:0}
 
 @media(max-width:480px){.chart-slot text{font-size:14px}.graph-canvas{height:620px}.execution-heading h1{font-size:34px}}
+
+/* Customer account pages share the paper palette and existing form controls. */
+.auth-layout{display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(24px,5vw,90px);max-width:1120px;margin:40px auto;align-items:start}.auth-intro h1{font-size:clamp(40px,5vw,76px);line-height:1.05;max-width:650px}.auth-intro>p{font-size:18px;line-height:1.7;max-width:540px}.auth-intro .paper-note{max-width:330px;margin-top:40px}.auth-card{padding:clamp(24px,4vw,48px)}.auth-card h2{margin-bottom:26px}.auth-switch{margin:24px 0}.viewer-name{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.guest-checkout-note{margin-bottom:20px}.auth-card [role=alert]{color:#000}.top-actions .button{white-space:nowrap}input[type=password]{font:inherit;color:#000;background:#fffdf7;border:1px solid #d8cfbf;border-radius:6px;padding:12px;width:100%}[hidden]{display:none!important}@media(max-width:760px){.auth-layout{grid-template-columns:1fr;margin:10px auto;gap:24px}.auth-intro .paper-note{display:none}.viewer-name{display:none}.top-actions{gap:10px}.top-actions .live-label{display:none}.auth-card{padding:24px}}

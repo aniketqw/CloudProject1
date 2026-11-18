@@ -15,5 +15,6 @@
   "create_firestore": true,
   "state_bucket": "replace-project-id-food-tfstate",
   "operator_user": "team-demo",
-  "compute_profile": "demo"
+  "compute_profile": "demo",
+  "customer_access": "enabled"
 }

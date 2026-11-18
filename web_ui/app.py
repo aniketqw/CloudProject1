@@ -13,6 +13,10 @@ from flask import Flask,g,jsonify,render_template,request,redirect
 from werkzeug.exceptions import BadRequest,Conflict,HTTPException,NotFound,ServiceUnavailable
 from web_ui.client import Client,ServiceError,SERVICES
 from web_ui.state import State
+from web_ui.access import Access
+from werkzeug.exceptions import Forbidden,Unauthorized
+from urllib.parse import urlencode
+from werkzeug.security import check_password_hash
 from web_ui.demo import create_workspace
 from web_ui.analytics import collect,history_metrics
 
@@ -52,6 +56,7 @@ def create_app(config=None,*,client=None):
     app=Flask(__name__)
     app.config.update(APP_ENV=os.environ.get("APP_ENV","production"),MAX_CONTENT_LENGTH=32768,
         STATE_PATH=os.environ.get("WEB_UI_DATA",str(Path(".local-build")/"web-ui.sqlite3")))
+    app.config.update(STAFF_USER=os.environ.get('WEB_OPERATOR_USER',''),STAFF_PASSWORD_HASH=os.environ.get('WEB_OPERATOR_PASSWORD_HASH',''))
     if config:app.config.update(config)
     if not app.testing:require_profile(app.config["APP_ENV"])
     cloud_access=CloudAccess() if app.config["APP_ENV"]=="cloud" else None
@@ -59,12 +64,14 @@ def create_app(config=None,*,client=None):
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app=ProxyFix(app.wsgi_app,x_proto=1)
     state=State(app.config["STATE_PATH"]);api=client or Client()
+    public_access=app.config.get("PUBLIC_ACCESS",os.environ.get("WEB_CUSTOMER_ACCESS")=="enabled")
+    access=Access(state,api) if public_access else None
     app.extensions.update(web_state=state,web_client=api)
 
     @app.before_request
     def session():
         if cloud_access:
-            denied=cloud_access.authorize()
+            denied=cloud_access.transport() if public_access else cloud_access.authorize()
             if denied is not None:return denied
         if request.path=="/health":return
         if not cloud_access and request.host.split(":")[0].lower() not in {"localhost","127.0.0.1","web-ui"}:
@@ -72,12 +79,39 @@ def create_app(config=None,*,client=None):
         if request.endpoint=="static" or request.path=="/health":return
         row,g.new_session=state.session(request.cookies.get("supper_session"))
         g.sid,g.csrf=row["id"],row["csrf"];g.context=json.loads(row["data"])
+        g.operator=not public_access
+        if access:
+            g.identity=access.identity(g.sid)
+            if g.identity is None:
+                with state.connection() as c:c.execute('DELETE FROM web_auth WHERE session_id=?',(g.sid,));c.execute('DELETE FROM sessions WHERE id=?',(g.sid,))
+                row,_=state.session(None);g.sid,g.csrf=row['id'],row['csrf'];g.context={};g.new_session=True;g.identity=access.identity(g.sid)
+            auth=request.authorization
+            if cloud_access and auth and auth.type=='basic' and cloud_access.valid(auth.username,auth.password) and g.identity['role']!='operator':
+                g.sid,g.csrf,g.context,g.identity=access.rotate(g.sid,{'owner':str(uuid.uuid4()),'role':'operator'},allow_pending_operator=True);g.new_session=True
+            g.operator=g.identity['role']=='operator'
+            if not g.operator and g.context.get('workspace_id') and not access.owns(g.identity['owner'],g.context['workspace_id']):
+                row,_=state.session(None);g.sid,g.csrf=row['id'],row['csrf'];g.context={};g.new_session=True;g.identity=access.identity(g.sid)
         if request.method not in {"GET","HEAD","OPTIONS"}:
             supplied=request.headers.get("X-CSRF-Token","")
             if not hmac.compare_digest(supplied,g.csrf):raise BadRequest("Reload this page before submitting the form.")
             if request.headers.get("Sec-Fetch-Site")=="cross-site":raise BadRequest("Cross-site actions are not permitted.")
             origin=request.headers.get("Origin")
             if origin and origin!=request.host_url.rstrip("/"):raise BadRequest("The form must come from this local interface.")
+        if access and not g.operator:
+            path=request.path
+            if request.method=='POST' and not path.startswith('/api/auth/'):
+                access.limit('customer-write',g.identity['owner'],120,60)
+            staff=any(path==prefix or path.startswith(prefix+'/') for prefix in ['/kitchen','/courier','/operations','/api/kitchen','/api/courier','/api/couriers','/api/fleet','/api/operations','/api/system'])
+            body=request.get_json(silent=True) if request.is_json else {}
+            staff=staff or (path=='/api/workspaces' and request.method=='POST') or request.args.get('recipient')=='courier'
+            staff=staff or (path.startswith('/api/notifications/') and isinstance(body,dict) and body.get('recipient')=='courier')
+            staff=staff or (path=='/api/context' and isinstance(body,dict) and bool(set(body)&{'courier_id','restaurant_id'}))
+            if staff:
+                if not path.startswith('/api/') and request.method=='GET':return redirect('/staff/sign-in?'+urlencode({'next':path}))
+                raise Forbidden('Staff access is required for this action.')
+
+    @app.context_processor
+    def viewer():return {'portal_enabled':public_access,'viewer_is_operator':getattr(g,'operator',not public_access),'viewer_identity':access.public_identity(g.identity) if access and hasattr(g,'identity') else None}
 
     @app.after_request
     def headers(response):
@@ -85,7 +119,7 @@ def create_app(config=None,*,client=None):
             "Content-Security-Policy":"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
             "Permissions-Policy":"camera=(), microphone=(), geolocation=()"})
         if getattr(g,"new_session",False):
-            response.set_cookie("supper_session",g.sid,httponly=True,samesite="Strict",max_age=30*86400,secure=bool(cloud_access))
+            response.set_cookie("supper_session",g.sid,httponly=True,samesite="Lax" if public_access else "Strict",max_age=30*86400,secure=bool(cloud_access))
         return response
 
     @app.errorhandler(ServiceError)
@@ -104,13 +138,15 @@ def create_app(config=None,*,client=None):
 
     def workspace(required=True):
         value=state.workspace(g.context.get("workspace_id"))
+        if value and access and not g.operator and not access.owns(g.identity['owner'],value['id']):raise NotFound('Your customer workspace was not found.')
         if required and (not value or value.get("status")!="READY"):raise Conflict("Start or select a completed demo workspace first.")
         return value
 
     def public_context():
         value=workspace(False)
         public={k:value[k] for k in ("id","name","customer_id","restaurant_id","couriers","zone","run_id","status","created_at") if k in value} if value else None
-        return {"workspace":public,"cart":g.context.get("cart",{}),
+        if access and not g.operator and public:public={k:v for k,v in public.items() if k not in {'couriers','zone','run_id'}}
+        return {"auth":access.public_identity(g.identity) if access else None,"workspace":public,"cart":g.context.get("cart",{}),
             "kitchen_restaurant_id":g.context.get("kitchen_restaurant_id") or (value or {}).get("restaurant_id"),
             "courier_id":g.context.get("courier_id") or next(iter((value or {}).get("couriers",[])),None),
             "pending_checkout":state.pending(g.sid,"checkout"),"simulation":True}
@@ -122,7 +158,7 @@ def create_app(config=None,*,client=None):
         value=uid(value);w=workspace()
         row=api.call("order","GET","/orders/"+value)["order"]
         if kind=="customer":
-            permitted=row["customer_id"]==w["customer_id"]
+            permitted=any(row['customer_id']==item['customer_id'] and value in item.get('orders',[]) for item in access.workspaces(g.identity['owner'])) if access and not g.operator else row["customer_id"]==w["customer_id"]
         elif kind=="kitchen":
             permitted=row["restaurant_id"]==public_context()["kitchen_restaurant_id"]
         else:permitted=value in w.get("orders",[]) and row["customer_id"]==w["customer_id"]
@@ -148,6 +184,49 @@ def create_app(config=None,*,client=None):
             raise
         state.finish(g.sid,operation_id,result)
         return result
+
+    def finish_auth(result):
+        g.sid,g.csrf,g.context,g.identity=result;g.operator=g.identity['role']=='operator';g.new_session=True
+        return jsonify(public_context())
+
+    @app.get('/signin')
+    @app.get('/signup')
+    @app.get('/staff/sign-in')
+    def sign_in_page():
+        return render_template('page.html',page='auth',title='A seat of your own',role='customer',csrf=g.csrf,auth_mode='staff' if request.path.startswith('/staff/') else ('signup' if request.path=='/signup' else 'signin'))
+
+    @app.post('/api/auth/guest')
+    def guest_session():
+        if not access:raise NotFound()
+        only(request.get_json(),set())
+        access.guest(g.sid,g.identity);g.context=access.context(g.sid)
+        return jsonify(public_context()),201
+
+    @app.post('/api/auth/signup')
+    def signup():
+        if not access:raise NotFound()
+        return finish_auth(access.signup(g.sid,g.identity,request.get_json()))
+
+    @app.post('/api/auth/signin')
+    def signin():
+        if not access:raise NotFound()
+        return finish_auth(access.login(g.sid,g.identity,request.get_json()))
+
+    @app.post('/api/auth/staff')
+    def staff_signin():
+        if not access:raise NotFound()
+        body=only(request.get_json(),{'username','password'},{'username','password'})
+        access.limit('staff-login',request.remote_addr or 'unknown',8,900)
+        username,password=body['username'],body['password']
+        valid=cloud_access.valid(username,password) if cloud_access else (isinstance(username,str) and isinstance(password,str) and hmac.compare_digest(username.encode(),app.config.get('STAFF_USER','').encode()) and bool(app.config.get('STAFF_PASSWORD_HASH')) and check_password_hash(app.config['STAFF_PASSWORD_HASH'],password))
+        if not valid:raise Unauthorized('Staff credentials were not recognised.')
+        return finish_auth(access.rotate(g.sid,{'owner':str(uuid.uuid4()),'role':'operator'},{}))
+
+    @app.post('/api/auth/signout')
+    def signout():
+        if not access:raise NotFound()
+        only(request.get_json(),set())
+        return finish_auth(access.rotate(g.sid,{'owner':str(uuid.uuid4()),'role':'guest'},{}))
 
     @app.get("/health")
     def health():return jsonify({"service":"web-ui","status":"healthy","simulation":True})
@@ -176,7 +255,7 @@ def create_app(config=None,*,client=None):
 
     @app.get("/api/workspaces")
     def workspaces():
-        return jsonify({"workspaces":[{k:row[k] for k in ("id","name","status","created_at")} for row in state.list_workspaces()]})
+        return jsonify({"workspaces":[{k:row[k] for k in ("id","name","status","created_at")} for row in (access.workspaces(g.identity['owner']) if access and not g.operator else state.list_workspaces())]})
 
     @app.post("/api/workspaces")
     def workspace_create():
@@ -197,6 +276,7 @@ def create_app(config=None,*,client=None):
         if state.pending(g.sid,"checkout"):raise Conflict("Resolve the pending checkout before changing workspaces.")
         if "workspace_id" in body:
             value=state.workspace(uid(body["workspace_id"]))
+            if access and not g.operator and not access.owns(g.identity['owner'],body['workspace_id']):raise NotFound('Your customer workspace was not found.')
             if not value or value["status"]!="READY":raise NotFound("Completed workspace not found.")
             g.context={"workspace_id":value["id"],"cart":{}}
         if "courier_id" in body:g.context["courier_id"]=courier_id(body["courier_id"])
@@ -241,6 +321,7 @@ def create_app(config=None,*,client=None):
         entry=next((row for row in menu["items"] if row["item_id"]==item),None)
         if quantity and (not menu["is_open"] or not entry or not entry["available"]):raise Conflict("This item is currently unavailable.")
         g.context=state.cart(g.sid,g.context["workspace_id"],rid,item,quantity)
+        if access and not g.operator:access.attach_restaurant(g.context['workspace_id'],rid)
         return jsonify({"cart":g.context["cart"]})
 
     @app.post("/api/cart/clear")
@@ -304,6 +385,24 @@ def create_app(config=None,*,client=None):
 
     @app.get("/api/orders")
     def orders():
+        w=workspace(False)
+        if access and not g.operator:
+            rows=[];truncated=False
+            for owned in access.workspaces(g.identity['owner']):
+                cursor=None
+                for page in range(4):
+                    result=api.call('order','GET','/orders',query={'customer_id':owned['customer_id'],'limit':50,'after':cursor})
+                    rows.extend(x for x in result['orders'] if x['customer_id']==owned['customer_id'] and x['order_id'] in owned.get('orders',[]))
+                    cursor=result.get('next_after')
+                    if not cursor:break
+                truncated=truncated or bool(cursor)
+            rows=sorted({x['order_id']:x for x in rows}.values(),key=lambda x:(x['created_at'],x['order_id']))
+            after=request.args.get('after')
+            if after:
+                index=next((i for i,x in enumerate(rows) if x['order_id']==after),None)
+                if index is None:raise BadRequest('The order cursor is outside your account.')
+                rows=rows[index+1:]
+            return jsonify({'orders':rows[:50],'next_after':rows[49]['order_id'] if len(rows)>50 else None,'truncated':truncated})
         w=workspace()
         return jsonify(api.call("order","GET","/orders",query={"customer_id":w["customer_id"],"limit":50,"after":request.args.get("after")}))
 
@@ -424,6 +523,24 @@ def create_app(config=None,*,client=None):
 
     @app.get("/api/notifications")
     def notifications():
+        if access and not g.operator:
+            rows=[];unread=0;truncated=False
+            for cid in {w['customer_id'] for w in access.workspaces(g.identity['owner'])}:
+                cursor=None
+                for page in range(4):
+                    value=api.call('notification','GET','/notifications',query={'customer_id':cid,'limit':50,'after':cursor})
+                    rows.extend(x for x in value['notifications'] if x.get('recipient_type')=='customer' and str(x.get('recipient_id'))==str(cid))
+                    if page==0:unread+=value.get('recipient_unread_count',0)
+                    cursor=value.get('next_after')
+                    if not cursor:break
+                truncated=truncated or bool(cursor)
+            rows=sorted({x['notification_id']:x for x in rows}.values(),key=lambda x:(x['created_at'],x['notification_id']))
+            after=request.args.get('after')
+            if after:
+                index=next((i for i,x in enumerate(rows) if x['notification_id']==after),None)
+                if index is None:raise BadRequest('The inbox cursor is outside your account.')
+                rows=rows[index+1:]
+            return jsonify({'notifications':rows[:50],'recipient_unread_count':unread,'total_matching':len(rows),'next_after':rows[49]['notification_id'] if len(rows)>50 else None,'truncated':truncated})
         kind,value=notification_recipient()
         return jsonify(api.call("notification","GET","/notifications",query={kind+"_id":value,"limit":50,"after":request.args.get("after")}))
 
@@ -432,6 +549,12 @@ def create_app(config=None,*,client=None):
         w=workspace();body=only(request.get_json(),{"operation_id","action","expected_version","recipient","scenario"},
             {"operation_id","action","expected_version"})
         kind,recipient=("courier",courier_id()) if body.get("recipient")=="courier" else ("customer",w["customer_id"])
+        if access and not g.operator:
+            selected=None
+            for cid in {item['customer_id'] for item in access.workspaces(g.identity['owner'])}:
+                if api.optional('notification','/notifications/'+uid(value),query={'customer_id':cid}):selected=cid;break
+            if selected is None:raise NotFound('Notification was not found in your account.')
+            kind,recipient='customer',selected
         if body["action"] not in {"read","retry"}:raise BadRequest("Unknown notification action.")
         payload={"recipient_type":kind,"recipient_id":recipient,"expected_version":body["expected_version"]}
         if body["action"]=="retry":payload["scenario"]=body.get("scenario","success")

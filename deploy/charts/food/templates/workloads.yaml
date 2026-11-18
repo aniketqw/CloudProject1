@@ -68,6 +68,9 @@ spec:
             - secretRef: {name: food-web}
             {{- end }}
           env:
+            {{- if $w.web }}
+            - {name: WEB_CUSTOMER_ACCESS, value: {{ ternary "enabled" "disabled" $.Values.customerAccess.enabled | quote }}}
+            {{- end }}
             {{- if and (eq $w.factory "notification") (eq $.Values.computeProfile "demo") }}
             # Two senders each require a fenced session plus an independent receipt
             # connection. Reserve one overflow slot for inbox/health reads.

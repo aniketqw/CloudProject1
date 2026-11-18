@@ -17,13 +17,19 @@ class CloudAccess:
         if not self.user or not self.password_hash.startswith(("scrypt:","pbkdf2:sha256:")):
             raise RuntimeError("The cloud web interface requires a server-side operator password hash.")
         self.host=parsed.netloc.lower()
-    def authorize(self):
+    def transport(self):
         if request.path=="/health":return None
         if request.host.lower()!=self.host:return Response("Unknown web host.",status=400)
         if not request.is_secure:return Response("HTTPS is required.",status=403)
+        return None
+    def valid(self,username,password):
+        valid=isinstance(username,str) and isinstance(password,str) and hmac.compare_digest(username.encode(),self.user.encode())
+        try:return bool(valid and check_password_hash(self.password_hash,password))
+        except (ValueError,TypeError):return False
+    def authorize(self):
+        denied=self.transport()
+        if denied is not None or request.path=="/health":return denied
         auth=request.authorization
-        valid=bool(auth and auth.type=="basic" and hmac.compare_digest(auth.username or "",self.user))
-        try:valid=valid and check_password_hash(self.password_hash,auth.password or "")
-        except (ValueError,TypeError):valid=False
+        valid=bool(auth and auth.type=="basic" and self.valid(auth.username,auth.password))
         if not valid:return Response("Authentication required.",401,{"WWW-Authenticate":'Basic realm="Supper operator demo", charset="UTF-8"',"Cache-Control":"no-store"})
         return None

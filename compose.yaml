@@ -935,6 +935,9 @@ services:
     environment:
       APP_ENV: local
       WEB_UI_DATA: /var/lib/web-ui/state.sqlite3
+      WEB_CUSTOMER_ACCESS: ${WEB_CUSTOMER_ACCESS:-disabled}
+      WEB_OPERATOR_USER: ${LOCAL_WEB_OPERATOR_USER:-}
+      WEB_OPERATOR_PASSWORD_HASH: ${LOCAL_WEB_OPERATOR_PASSWORD_HASH:-}
     command: ["python", "-m", "web_ui.app"]
     ports:
       - "127.0.0.1:${LOCAL_WEB_PORT:-3000}:3000"

@@ -10,9 +10,10 @@ from deploy.capacity import selected, apply_to_values
 ROOT=Path(__file__).resolve().parents[1]
 FIELDS={"project_id","region","zone","prefix","public_host","git_repository","git_revision","image_tag","kafka_bootstrap","kafka_cluster_id","kafka_rest_endpoint","dns_zone","admin_cidr","create_firestore","state_bucket","operator_user"}
 def validate(v,allow_example=False):
-    if not isinstance(v,dict) or not FIELDS.issubset(v) or set(v)-FIELDS-{"compute_profile","analytics_release"}:raise ValueError("Use exactly the non-secret fields in config.example.json.")
+    if not isinstance(v,dict) or not FIELDS.issubset(v) or set(v)-FIELDS-{"compute_profile","analytics_release","customer_access"}:raise ValueError("Use exactly the non-secret fields in config.example.json.")
     if any(type(value) is not str for key,value in v.items() if key!="create_firestore") or type(v["create_firestore"]) is not bool:raise ValueError("Invalid configuration types.")
     selected(v)
+    if v.get("customer_access","enabled") not in {"enabled","disabled"}:raise ValueError("Invalid customer access mode.")
     checks={"project_id":r"[a-z][a-z0-9-]{4,28}[a-z0-9]","prefix":r"[a-z][a-z0-9-]{2,14}","region":r"[a-z]+-[a-z]+[0-9]","zone":r"[a-z]+-[a-z]+[0-9]-[a-z]","public_host":r"[a-z0-9][a-z0-9.-]+\.[a-z]{2,}","image_tag":r"[A-Za-z0-9][A-Za-z0-9_.-]{0,100}","operator_user":r"[A-Za-z0-9_-]{3,40}","state_bucket":r"[a-z0-9][a-z0-9.-]{3,61}[a-z0-9]"}
     for key,pattern in checks.items():
         if not re.fullmatch(pattern,v[key]):raise ValueError("Invalid non-secret field: "+key)
@@ -42,6 +43,7 @@ def render(v,target="team",outputs=None):
     base=ROOT/"deploy/environments"/target
     values=json.loads((ROOT/"deploy/charts/food/values.yaml").read_text())
     apply_to_values(v,values)
+    values["customerAccess"]={"enabled":v.get("customer_access","enabled")=="enabled"}
     values.update(projectId=project,clusterName=prefix+"-gke",clusterLocation=v["zone"],image=f"{region}-docker.pkg.dev/{project}/{prefix}-app/app:{v['image_tag']}",host=v["public_host"],publicOrigin="https://"+v["public_host"],cloudSqlConnection=f"{project}:{region}:{prefix}-sql")
     values["env"].update(DEPLOYMENT_ZONE=v["zone"],CLOUD_LIFECYCLE_PROTOCOL="1",PROJECT_ID=project,KAFKA_BOOTSTRAP_SERVERS=v["kafka_bootstrap"],NOTIFICATION_RECEIPTS_BUCKET=f"{project}-{prefix}-receipts",NOTIFICATION_DISPATCH_TOPIC=prefix+"-notification-dispatch")
     values["serviceAccounts"]={k:f"{prefix}-{g}@{project}.iam.gserviceaccount.com" for k,g in {"sql":"sql","firestore":"firestore","combined":"combined","notification":"notify","eso":"secrets","launcher":"launcher"}.items()}
