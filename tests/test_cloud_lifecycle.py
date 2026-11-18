@@ -405,6 +405,14 @@ class AnalyticsProtocol(unittest.TestCase):
         for uri in ["https://example.test/state", "gs://other-bucket/savepoint-test"]:
             with self.assertRaises((ValueError, LifecycleError)):
                 spec({**env, "ANALYTICS_SAVEPOINT": uri})
+    def test_completed_checkpoint_recovery_stays_inside_the_owned_job_prefix(self):
+        root = ENV["ANALYTICS_CHECKPOINT_URI"].rstrip("/")
+        point = root + "/" + "a"*32 + "/chk-239"
+        self.assertEqual(spec({**ENV, "ANALYTICS_SAVEPOINT": point})[2]["flinkJob"]["savepointUri"], point)
+        for invalid in (point + "/_metadata", root + "/short/chk-239", root + "/" + "a"*32 + "/chk-0",
+                        point.replace("gs://", "gs://foreign-")):
+            with self.assertRaises((ValueError, LifecycleError)):
+                spec({**ENV, "ANALYTICS_SAVEPOINT": invalid})
     def test_paused_or_foreign_release_control_never_starts_fresh_job(self):
         store = Store()
         record = {"schema_version": 1, "context_key": context_key(CONFIG), "release_key": release_key(ENV),

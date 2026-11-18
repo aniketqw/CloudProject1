@@ -38,8 +38,11 @@ def spec(env):
     savepoint = env.get("ANALYTICS_SAVEPOINT", "")
     if savepoint:
         gs_parts(savepoint)
-        if not savepoint.startswith(settings["ANALYTICS_CHECKPOINT_URI"].rstrip("/") + "/savepoints/"):
-            raise ValueError("Restore only from this deployment's protected savepoint prefix.")
+        checkpoint_root = settings["ANALYTICS_CHECKPOINT_URI"].rstrip("/")
+        owned_savepoint = savepoint.startswith(checkpoint_root + "/savepoints/")
+        owned_checkpoint = re.fullmatch(re.escape(checkpoint_root) + r"/[0-9a-f]{32}/chk-[1-9][0-9]*", savepoint)
+        if not owned_savepoint and not owned_checkpoint:
+            raise ValueError("Restore only from this deployment's protected savepoint or completed-checkpoint prefix.")
     release = release_key(env)
     digest = hashlib.sha256(json.dumps([release, run_id, savepoint]).encode()).hexdigest()[:20]
     job = {"reference": {"projectId": project, "jobId": "food-analytics-" + digest},
@@ -49,6 +52,10 @@ def spec(env):
             "jarFileUris": [env["ANALYTICS_JAR_URI"]],
             "args": ["--settings-json=" + json.dumps(settings, separators=(",", ":"))],
             "properties": {"parallelism.default": "1", "execution.checkpointing.interval": "10s",
+                           "jobmanager.memory.process.size": "768m",
+                           "taskmanager.memory.process.size": "1024m",
+                           "taskmanager.memory.managed.fraction": "0.2",
+                           "env.java.default-opts.client": "-Xms64m -Xmx256m",
                            # Kafka types cross the parent-loaded Flink connector API.
                            # Resolve them in the same loader on Dataproc application mode.
                            "classloader.parent-first-patterns.additional": "org.apache.kafka.",
