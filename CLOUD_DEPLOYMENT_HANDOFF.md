@@ -442,7 +442,7 @@ Published to `main` on 15 November 2026. The default `compute_profile` is `demo`
 
 | Setting | Demo default |
 | --- | --- |
-| GKE worker pool | Two `e2-standard-2` nodes; normal and maximum node count both two |
+| GKE worker pool | Three `e2-standard-2` nodes; normal and maximum node count both three |
 | GKE boot disks | 30 GB standard persistent disks per node |
 | Managed analytics | One `e2-standard-2` master/worker VM; zero separate worker VMs |
 | Managed analytics disk | 30 GB standard persistent disk |

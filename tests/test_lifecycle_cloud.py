@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
+from deploy.capacity import selected
 from deploy.lifecycle_cloud import Cloud
 from deploy.lifecycle import Engine
 from deploy.lifecycle_state import LifecycleError, locations, context_key
@@ -23,10 +24,11 @@ def fixture():
     cloud = Cloud(CONFIG, Store(), values, session=Mock())
     cloud.store.write("kafka_policy", {"schema_version": 1, "context_key": context_key(CONFIG),
         "retention_days": 21, "cluster_id": CONFIG["kafka_cluster_id"], "broker": CONFIG["kafka_bootstrap"]}, 0)
+    expected_nodes = selected(CONFIG)[1]["gke_nodes"]
     actual = {"gke": {"status": "RUNNING", "endpoint": "192.0.2.10", "createTime": "created-gke"},
-              "pool": {"config": {"machineType": "e2-standard-2"}, "autoscaling": {"enabled": True, "minNodeCount": 2, "maxNodeCount": 2},
+              "pool": {"config": {"machineType": "e2-standard-2"}, "autoscaling": {"enabled": True, "minNodeCount": expected_nodes, "maxNodeCount": expected_nodes},
                        "instanceGroupUrls": ["https://www.googleapis.com/compute/v1/projects/assignment-test-123/zones/asia-south1-a/instanceGroups/expected-group"]},
-              "nodes": 2, "sql": {"createTime": "created-sql", "settings": {"tier": "db-g1-small", "activationPolicy": "ALWAYS"}},
+              "nodes": expected_nodes, "sql": {"createTime": "created-sql", "settings": {"tier": "db-g1-small", "activationPolicy": "ALWAYS"}},
               "dataproc": {"clusterUuid": "same-cluster", "status": {"state": "RUNNING"}}}
     job = spec(ENV)[2]
     job.update(status={"state": "RUNNING"}, yarnApplications=[{"state": "RUNNING", "name": "application_123_0001"}])
@@ -56,7 +58,7 @@ class Adapter(unittest.TestCase):
     def test_snapshot_confirms_capacity_release_and_resource_identity(self):
         cloud, _ = fixture()
         snapshot = cloud.snapshot()
-        self.assertEqual(snapshot["nodes"], 2)
+        self.assertEqual(snapshot["nodes"], selected(CONFIG)[1]["gke_nodes"])
         self.assertEqual(snapshot["application_id"], "application_123_0001")
         cloud.validate_snapshot(snapshot)
 
@@ -115,7 +117,7 @@ class Adapter(unittest.TestCase):
         cloud, actual = fixture()
         cloud.request = Mock(return_value=actual["pool"])
         cloud.operation = Mock()
-        cloud.autoscaling({"enabled": True, "minNodeCount": 2, "maxNodeCount": 2, "etag": "not-an-input"})
+        cloud.autoscaling({**actual["pool"]["autoscaling"], "etag": "not-an-input"})
         cloud.operation.assert_not_called()
         cloud.request.reset_mock()
         cloud.request.side_effect = [actual["pool"], {"name": "operation-test"}]
