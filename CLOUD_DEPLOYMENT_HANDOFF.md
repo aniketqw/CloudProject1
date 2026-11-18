@@ -4,7 +4,7 @@ Prepared: 14 November 2026. Updated: 18 November 2026.
 
 ## 1. What is ready
 
-The preserved local application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. Earlier capacity and lifecycle helpers were published to `main` in commit **2f05f2f76f2bacf5ede91378503d2345f7cc6dcb**. The verified cloud deployment adds managed-service fixes on branch `codex/cloud-deploy-20261117`, with application release tag **cloud-release-20261118-v11** at commit **7e90c6de257912e4963f1dc3d5f0291533666673**. Use that cloud source for deployment or presentation recovery; use the older frozen baseline for independent local recovery. The current deployment uses project `cloudproject-515012` in `us-central1` / `us-central1-a`. The old source backups remain intact.
+The preserved local application baseline is commit **f82c4da7557d7c43993a50e06bf843182ed161a6**. Earlier capacity and lifecycle helpers were published to `main` in commit **2f05f2f76f2bacf5ede91378503d2345f7cc6dcb**. The verified cloud deployment adds managed-service fixes on branch `deploy`, with application release tag **cloud-release-20261118-v11** at commit **7e90c6de257912e4963f1dc3d5f0291533666673**. Use that cloud source for deployment or presentation recovery; use the older frozen baseline for independent local recovery. The current deployment uses project `cloudproject-515012` in `us-central1` / `us-central1-a`. The old source backups remain intact.
 
 The eight assigned services are implemented: Customer, Restaurant, Order, Task Scheduler, Kitchen Workflow, Delivery Assignment, Payment and Notification. Restaurant Service includes Flink streaming analytics. The UI has separate customer, kitchen, courier and operations pages, interactive charts and an execution graph showing real task prerequisites.
 
@@ -24,8 +24,8 @@ The final source has **341 passing Python tests**, including the actual k6 expor
 
 - Public HTTPS address: [Supper](https://food-136-69-72-1.sslip.io).
 - **Final state: paused to save credits.** Resume before opening the app. Local Docker Desktop is stopped and is unnecessary for cloud resume.
-- Final source-and-documentation tag: `cloud-handoff-20261118`; the active application/GitOps release remains `cloud-release-20261118-v11`.
-- Source branch: `codex/cloud-deploy-20261117`; current GitOps revision: `cloud-release-20261118-v11`.
+- Final source-and-documentation tag: `cloud-handoff-20261118-deploy`; the active application/GitOps release remains `cloud-release-20261118-v11`.
+- Source branch: `deploy`; current GitOps revision: `cloud-release-20261118-v11`.
 - Application image release: `cloud-release-20261118-v11`; analytics artifact release: `cloud-release-20261118-v3`. Web changes preserve the running analytics identity.
 - Capacity: three `e2-standard-2` GKE workers, one `e2-standard-2` analytics VM and `db-g1-small` SQL. No larger compute profile was selected.
 - Credentials are supplied by pinned Secret Manager versions. Private configuration, operator unlock data, state, plans and raw evidence stay outside Git.
@@ -120,7 +120,7 @@ This preserves application code. It does not restore previous orders, Kafka offs
 
 ### Final cloud source recovery
 
-A separate frozen archive of the final cloud source and this handoff, tagged `cloud-handoff-20261118`, is created after publication under `.local-build/recovery/cloud-verified-20261118-<commit>/verified-source.zip`. The local record `.local-build/cloud/final-source-recovery.json` gives its exact path, source commit/tag, byte count and SHA-256. A neighboring `.zip.sha256` file verifies the ZIP, and the ZIP includes a per-file `SOURCE_MANIFEST.json`.
+A separate frozen archive of the final cloud source and this handoff, tagged `cloud-handoff-20261118-deploy`, is created after publication under `.local-build/recovery/cloud-verified-20261118-<commit>/verified-source.zip`. The local record `.local-build/cloud/final-source-recovery.json` gives its exact path, source commit/tag, byte count and SHA-256. A neighboring `.zip.sha256` file verifies the ZIP, and the ZIP includes a per-file `SOURCE_MANIFEST.json`.
 
 The archive excludes credentials, private configuration, Terraform state/plans, Git history, runtime data and Docker images. It preserves source, including deployment code and non-secret manifests. It supports rebuilding an independent local demo; recreating cloud infrastructure still requires authorized account configuration, state access and fresh/private secrets. Keep the cloud source tag and recovery archive alongside the older local baseline.
 
@@ -214,10 +214,10 @@ From that checkout, check for local changes before switching branches. Preserve 
 ```powershell
 git status --short
 git fetch origin --tags
-git switch -c codex/cloud-rebuild cloud-release-20261118-v11
+git switch deploy
 ```
 
-If `codex/cloud-rebuild` already exists, inspect/use it instead of overwriting it. Confirm its source includes `deploy/lifecycle.py` and `deploy/profiles.json` before proceeding. The older recovery commit does not include the later lifecycle helpers.
+On a fresh clone, `git switch deploy` creates a local branch tracking `origin/deploy`. If it already exists, inspect/use it instead of overwriting it. Confirm its source includes `deploy/lifecycle.py` and `deploy/profiles.json` before proceeding. The older recovery commit does not include the later lifecycle helpers.
 
 Install Git, Python 3.12, Docker with Linux containers, Terraform 1.6 or newer, Helm, Google Cloud CLI, kubectl and the GKE authentication plugin. Start Docker Desktop before building release artifacts. Node.js is needed for the local JavaScript verification scripts. Java/Maven compilation runs inside the build container.
 
@@ -363,7 +363,7 @@ git diff --cached --check
 # Inspect the staged public configuration privately and scan it for secrets.
 git commit -m "Configure first cloud deployment"
 git tag cloud-release-v1
-git push -u origin codex/cloud-rebuild
+git push -u origin deploy
 git push origin cloud-release-v1
 ```
 
