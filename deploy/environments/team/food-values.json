@@ -1,6 +1,6 @@
 {
   "profile": "cloud",
-  "image": "us-central1-docker.pkg.dev/cloudproject-515012/food-app/app:cloud-release-20261118-v12",
+  "image": "us-central1-docker.pkg.dev/cloudproject-515012/food-app/app:cloud-release-20261118-v14",
   "imagePullPolicy": "IfNotPresent",
   "projectId": "cloudproject-515012",
   "publicOrigin": "https://food-136-69-72-1.sslip.io",

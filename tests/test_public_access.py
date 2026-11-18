@@ -12,6 +12,7 @@ class AccountsBackend(Backend):
     def __init__(self):
         super().__init__();self.people={};self.addresses={};self.sequence=100;self.fleet_keys={};self.notes={}
     def call(self,service,method,path,body=None,*,key=None,version=None,query=None):
+        if service=='restaurant' and path=='/restaurants/second/menu':return {**self.menu,'restaurant_id':'second','name':'Second kitchen'}
         if service=='customer':
             self.calls.append((service,method,path,body,key,version,query))
             parts=path.strip('/').split('/')
@@ -126,10 +127,48 @@ class PublicAccess(unittest.TestCase):
         self.signup(self.a);self.order(self.a);sid=self.a.get_cookie('supper_session').value
         with self.app.extensions['web_state'].connection() as c:c.execute('UPDATE web_auth SET expires=0 WHERE session_id=?',(sid,))
         self.assertFalse(self.a.get('/api/context').get_json()['auth']['signed_in']);self.assertEqual(self.a.get('/api/orders').get_json()['orders'],[])
+    def test_expired_session_recovers_committed_order_after_lost_checkout_response(self):
+        self.signup(self.a);self.cart(self.a);self.backend.lost=True
+        response=self.post(self.a,'/api/checkout',{'operation_id':str(uuid.uuid4()),'address_id':9});self.assertEqual(response.status_code,503)
+        oid=next(iter(self.backend.orders));sid=self.a.get_cookie('supper_session').value
+        with self.app.extensions['web_state'].connection() as c:c.execute('UPDATE web_auth SET expires=0 WHERE session_id=?',(sid,))
+        self.a.get('/');self.assertEqual(self.signin(self.a).status_code,200)
+        rows=self.a.get('/api/orders').get_json()['orders'];self.assertEqual([x['order_id'] for x in rows],[oid]);self.assertEqual(self.a.get('/api/orders/'+oid).status_code,200)
+        wid=self.a.get('/api/context').get_json()['workspace']['id'];self.assertIn(oid,self.app.extensions['web_state'].workspace(wid)['orders'])
+        self.signup(self.b,'other@example.test');self.assertEqual(self.b.get('/api/orders/'+oid).status_code,404)
+    def test_second_restaurant_keeps_the_first_order_fleet_and_profile(self):
+        self.signup(self.a);first=self.order(self.a);wa=self.a.get('/api/context').get_json()['workspace']['id'];state=self.app.extensions['web_state'];before=state.workspace(wa)
+        response=self.post(self.a,'/api/cart',{'restaurant_id':'second','item_id':'bowl','quantity':1});self.assertEqual(response.status_code,200)
+        wb=self.a.get('/api/context').get_json()['workspace']['id'];after=state.workspace(wb)
+        self.assertNotEqual(wa,wb);self.assertEqual(after['customer_id'],before['customer_id']);self.assertEqual(state.workspace(wa)['zone'],before['zone']);self.assertNotEqual(after['zone'],before['zone']);self.assertEqual(self.a.get('/api/orders/'+first).status_code,200)
+    def test_two_account_sessions_keep_independent_restaurant_carts(self):
+        self.signup(self.a);self.cart(self.a);wa=self.a.get('/api/context').get_json()['workspace']['id'];self.assertEqual(self.signin(self.b).status_code,200)
+        self.assertEqual(self.post(self.b,'/api/cart',{'restaurant_id':'second','item_id':'bowl','quantity':1}).status_code,200)
+        self.assertEqual(self.a.get('/api/context').get_json()['workspace']['id'],wa);self.assertEqual(self.a.get('/api/cart').get_json()['restaurant']['restaurant_id'],'paper');self.assertEqual(self.b.get('/api/cart').get_json()['restaurant']['restaurant_id'],'second')
+    def test_guest_cart_signin_does_not_move_an_existing_restaurant_fleet(self):
+        self.signup(self.a);self.order(self.a);wa=self.a.get('/api/context').get_json()['workspace']['id'];before=self.app.extensions['web_state'].workspace(wa);self.guest(self.b)
+        self.assertEqual(self.post(self.b,'/api/cart',{'restaurant_id':'second','item_id':'bowl','quantity':1}).status_code,200);self.assertEqual(self.signin(self.b).status_code,200)
+        wb=self.b.get('/api/context').get_json()['workspace']['id'];self.assertNotEqual(wa,wb);self.assertEqual(self.app.extensions['web_state'].workspace(wa)['zone'],before['zone']);self.assertEqual(self.b.get('/api/profile').get_json()['customer']['id'],before['customer_id'])
     def test_profile_or_staff_role_cannot_be_selected_in_customer_context(self):
         self.signup(self.a)
         self.assertEqual(self.post(self.a,'/api/context',{'owner':'other','role':'operator'}).status_code,400)
         self.assertEqual(self.post(self.a,'/api/auth/staff',{'username':'δοκιμή','password':PASSWORD}).status_code,401)
+    def test_signout_respects_cached_legacy_basic_credentials(self):
+        import base64
+        with patch.dict('os.environ',{'WEB_PUBLIC_ORIGIN':'https://demo.example.test','WEB_OPERATOR_USER':'test-operator','WEB_OPERATOR_PASSWORD_HASH':self.staff_hash}):
+            app=create_app({**self.config,'APP_ENV':'cloud'},client=self.backend);c=app.test_client();base='https://demo.example.test';headers={'Authorization':'Basic '+base64.b64encode(('test-operator:'+PASSWORD).encode()).decode()}
+            page=c.get('/',base_url=base,headers=headers);csrf=re.search('name="csrf-token" content="([^"]+)"',page.get_data(as_text=True)).group(1)
+            response=c.post('/api/auth/signout',base_url=base,json={},headers={**headers,'X-CSRF-Token':csrf});self.assertEqual(response.status_code,200)
+            self.assertEqual(c.get('/api/context',base_url=base,headers=headers).get_json()['auth']['role'],'guest');self.assertEqual(c.get('/api/system',base_url=base,headers=headers).status_code,403)
+            page=c.get('/',base_url=base,headers=headers);csrf=re.search('name="csrf-token" content="([^"]+)"',page.get_data(as_text=True)).group(1)
+            self.assertEqual(c.post('/api/auth/guest',base_url=base,json={},headers={**headers,'X-CSRF-Token':csrf}).status_code,201)
+            self.assertEqual(c.get('/api/context',base_url=base,headers=headers).get_json()['auth']['role'],'guest')
+            response=c.post('/api/auth/signup',base_url=base,json={'name':'Demo','email':'after-signout@example.test','password':PASSWORD},headers={**headers,'X-CSRF-Token':csrf});self.assertEqual(response.status_code,200)
+            self.assertEqual(c.get('/api/context',base_url=base,headers=headers).get_json()['auth']['role'],'customer')
+            sid=c.get_cookie('supper_session',domain='demo.example.test').value
+            with app.extensions['web_state'].connection() as store:store.execute('UPDATE web_auth SET expires=0 WHERE session_id=?',(sid,))
+            self.assertEqual(c.get('/api/context',base_url=base,headers=headers).get_json()['auth']['role'],'guest')
+
     def test_cloud_customer_home_is_public_but_legacy_cloud_gate_remains_available(self):
         with patch.dict('os.environ',{'WEB_PUBLIC_ORIGIN':'https://demo.example.test','WEB_OPERATOR_USER':'test-operator','WEB_OPERATOR_PASSWORD_HASH':self.staff_hash}):
             cfg={**self.config,'APP_ENV':'cloud'};app=create_app(cfg,client=self.backend);c=app.test_client();value=c.get('/',base_url='https://demo.example.test');self.assertEqual(value.status_code,200);self.assertNotIn('WWW-Authenticate',value.headers);self.assertIn('Secure',value.headers['Set-Cookie'])

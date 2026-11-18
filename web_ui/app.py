@@ -84,13 +84,17 @@ def create_app(config=None,*,client=None):
             g.identity=access.identity(g.sid)
             if g.identity is None:
                 with state.connection() as c:c.execute('DELETE FROM web_auth WHERE session_id=?',(g.sid,));c.execute('DELETE FROM sessions WHERE id=?',(g.sid,))
-                row,_=state.session(None);g.sid,g.csrf=row['id'],row['csrf'];g.context={};g.new_session=True;g.identity=access.identity(g.sid)
+                ignore_basic=g.context.get('_ignore_basic',False)
+                row,_=state.session(None);g.sid,g.csrf=row['id'],row['csrf'];g.context={'_ignore_basic':True} if ignore_basic else {};g.new_session=True;g.identity=access.identity(g.sid)
+                if ignore_basic:state.save(g.sid,g.context)
             auth=request.authorization
-            if cloud_access and auth and auth.type=='basic' and cloud_access.valid(auth.username,auth.password) and g.identity['role']!='operator':
+            if cloud_access and auth and auth.type=='basic' and not g.context.get('_ignore_basic') and cloud_access.valid(auth.username,auth.password) and g.identity['role']!='operator':
                 g.sid,g.csrf,g.context,g.identity=access.rotate(g.sid,{'owner':str(uuid.uuid4()),'role':'operator'},allow_pending_operator=True);g.new_session=True
             g.operator=g.identity['role']=='operator'
             if not g.operator and g.context.get('workspace_id') and not access.owns(g.identity['owner'],g.context['workspace_id']):
-                row,_=state.session(None);g.sid,g.csrf=row['id'],row['csrf'];g.context={};g.new_session=True;g.identity=access.identity(g.sid)
+                ignore_basic=g.context.get('_ignore_basic',False)
+                row,_=state.session(None);g.sid,g.csrf=row['id'],row['csrf'];g.context={'_ignore_basic':True} if ignore_basic else {};g.new_session=True;g.identity=access.identity(g.sid)
+                if ignore_basic:state.save(g.sid,g.context)
         if request.method not in {"GET","HEAD","OPTIONS"}:
             supplied=request.headers.get("X-CSRF-Token","")
             if not hmac.compare_digest(supplied,g.csrf):raise BadRequest("Reload this page before submitting the form.")
@@ -158,7 +162,7 @@ def create_app(config=None,*,client=None):
         value=uid(value);w=workspace()
         row=api.call("order","GET","/orders/"+value)["order"]
         if kind=="customer":
-            permitted=any(row['customer_id']==item['customer_id'] and value in item.get('orders',[]) for item in access.workspaces(g.identity['owner'])) if access and not g.operator else row["customer_id"]==w["customer_id"]
+            permitted=any(row['customer_id']==item['customer_id'] for item in access.workspaces(g.identity['owner'])) if access and not g.operator else row["customer_id"]==w["customer_id"]
         elif kind=="kitchen":
             permitted=row["restaurant_id"]==public_context()["kitchen_restaurant_id"]
         else:permitted=value in w.get("orders",[]) and row["customer_id"]==w["customer_id"]
@@ -226,7 +230,7 @@ def create_app(config=None,*,client=None):
     def signout():
         if not access:raise NotFound()
         only(request.get_json(),set())
-        return finish_auth(access.rotate(g.sid,{'owner':str(uuid.uuid4()),'role':'guest'},{}))
+        return finish_auth(access.rotate(g.sid,{'owner':str(uuid.uuid4()),'role':'guest'},{'_ignore_basic':True}))
 
     @app.get("/health")
     def health():return jsonify({"service":"web-ui","status":"healthy","simulation":True})
@@ -320,8 +324,8 @@ def create_app(config=None,*,client=None):
         menu=api.call("restaurant","GET","/restaurants/"+rid+"/menu")
         entry=next((row for row in menu["items"] if row["item_id"]==item),None)
         if quantity and (not menu["is_open"] or not entry or not entry["available"]):raise Conflict("This item is currently unavailable.")
-        g.context=state.cart(g.sid,g.context["workspace_id"],rid,item,quantity)
-        if access and not g.operator:access.attach_restaurant(g.context['workspace_id'],rid)
+        if access and not g.operator:g.context=access.cart(g.sid,g.identity,g.context['workspace_id'],rid,item,quantity,menu['name'])
+        else:g.context=state.cart(g.sid,g.context["workspace_id"],rid,item,quantity)
         return jsonify({"cart":g.context["cart"]})
 
     @app.post("/api/cart/clear")
@@ -392,7 +396,13 @@ def create_app(config=None,*,client=None):
                 cursor=None
                 for page in range(4):
                     result=api.call('order','GET','/orders',query={'customer_id':owned['customer_id'],'limit':50,'after':cursor})
-                    rows.extend(x for x in result['orders'] if x['customer_id']==owned['customer_id'] and x['order_id'] in owned.get('orders',[]))
+                    verified=[x for x in result['orders'] if x['customer_id']==owned['customer_id']]
+                    rows.extend(verified)
+                    # Rebuild this private view from committed domain records after a lost response.
+                    with state.connection() as c:
+                        c.execute('BEGIN IMMEDIATE');saved=json.loads(c.execute('SELECT data FROM workspaces WHERE id=?',(owned['id'],)).fetchone()['data'])
+                        saved['orders']=list(dict.fromkeys([*saved.get('orders',[]),*(x['order_id'] for x in verified if x['restaurant_id']==saved.get('restaurant_id'))]))
+                        c.execute('UPDATE workspaces SET data=? WHERE id=?',(json.dumps(saved),owned['id']))
                     cursor=result.get('next_after')
                     if not cursor:break
                 truncated=truncated or bool(cursor)

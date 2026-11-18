@@ -88,6 +88,7 @@ class State:
             if replace and self._pending_checkout(c,sid):
                 raise Conflict("Resolve the pending checkout before changing workspaces.")
             data=dict(fields) if replace else {**old,**fields}
+            if old.get('_ignore_basic'):data['_ignore_basic']=True
             c.execute("UPDATE sessions SET data=?,updated=? WHERE id=?",(json.dumps(data),time.time(),sid))
             return data
 

@@ -61,7 +61,7 @@ class Access:
         w={'id':wid,'name':'Your table','status':'READY','customer_id':customer['id'],'restaurant_id':None,'couriers':[],
            'zone':None,'run_id':wid,'orders':[],'created_at':datetime.now(timezone.utc).isoformat()}
         self.state.save_workspace(w);self.bind(identity['owner'],w);self.state.patch_context(sid,{'workspace_id':wid,'cart':{}},replace=True);return w
-    def attach_restaurant(self,wid,rid):
+    def restaurant_fleet(self,rid):
         with self.state.connection() as c:
             row=c.execute('SELECT data FROM web_restaurant_fleets WHERE restaurant_id=?',(rid,)).fetchone()
             sources=c.execute("SELECT data FROM workspaces WHERE json_extract(data,'$.restaurant_id')=? AND json_extract(data,'$.zone') IS NOT NULL AND json_extract(data,'$.status')='READY' AND json_array_length(data,'$.couriers')>0 ORDER BY rowid LIMIT 1",(rid,)).fetchall()
@@ -78,7 +78,31 @@ class Access:
         with self.state.connection() as c:
             c.execute('BEGIN IMMEDIATE');c.execute('INSERT INTO web_restaurant_fleets VALUES(?,?) ON CONFLICT(restaurant_id) DO NOTHING',(rid,json.dumps(fleet)))
             fleet=json.loads(c.execute('SELECT data FROM web_restaurant_fleets WHERE restaurant_id=?',(rid,)).fetchone()['data'])
-            data=json.loads(c.execute('SELECT data FROM workspaces WHERE id=?',(wid,)).fetchone()['data']);data.update(fleet,restaurant_id=rid);c.execute('UPDATE workspaces SET data=? WHERE id=?',(json.dumps(data),wid))
+        return fleet
+    def cart(self,sid,identity,expected_workspace,rid,item,quantity,name):
+        fleet=self.restaurant_fleet(rid)
+        with self.state.connection() as c:
+            c.execute('BEGIN IMMEDIATE');row=c.execute('SELECT data FROM sessions WHERE id=?',(sid,)).fetchone()
+            if not row:raise Conflict('Your session changed. Refresh before updating the cart.')
+            data=json.loads(row['data'])
+            if data.get('workspace_id')!=expected_workspace:raise Conflict('The selected table changed. Refresh before updating the cart.')
+            if self.state._pending_checkout(c,sid):raise Conflict('Resolve the pending checkout before changing the cart.')
+            owner=c.execute('SELECT owner FROM web_workspace_owners WHERE workspace_id=?',(expected_workspace,)).fetchone()
+            if not owner or owner['owner']!=identity['owner']:raise NotFound('Your customer table was not found.')
+            w=json.loads(c.execute('SELECT data FROM workspaces WHERE id=?',(expected_workspace,)).fetchone()['data']);cart=data.get('cart',{})
+            if cart.get('restaurant_id')!=rid and cart.get('items'):raise Conflict('Finish this cart before ordering from another kitchen.')
+            if w.get('restaurant_id') and w['restaurant_id']!=rid:
+                found=c.execute("SELECT w.data FROM workspaces w JOIN web_workspace_owners o ON o.workspace_id=w.id WHERE o.owner=? AND json_extract(w.data,'$.restaurant_id')=? AND json_extract(w.data,'$.customer_id')=? LIMIT 1",(identity['owner'],rid,w['customer_id'])).fetchone()
+                if found:w=json.loads(found['data'])
+                else:
+                    w={**w,'id':str(uuid.uuid4()),'orders':[],'created_at':datetime.now(timezone.utc).isoformat()}
+                    c.execute('INSERT INTO workspaces VALUES(?,?)',(w['id'],json.dumps(w)));c.execute('INSERT INTO web_workspace_owners VALUES(?,?)',(w['id'],identity['owner']))
+            w.update(fleet,restaurant_id=rid,name='Your table · '+name[:100]);c.execute('UPDATE workspaces SET data=? WHERE id=?',(json.dumps(w),w['id']))
+            items=cart.get('items',{}).copy() if cart.get('restaurant_id')==rid else {}
+            if quantity:items[item]=quantity
+            else:items.pop(item,None)
+            data.update(workspace_id=w['id'],cart={'restaurant_id':rid,'items':items} if items else {})
+            c.execute('UPDATE sessions SET data=?,updated=? WHERE id=?',(json.dumps(data),time.time(),sid));return data
     def context(self,sid):
         with self.state.connection() as c:row=c.execute('SELECT data FROM sessions WHERE id=?',(sid,)).fetchone()
         return json.loads(row['data'])
@@ -93,13 +117,22 @@ class Access:
             saved=json.loads(current['data'])
             if expected_context is not None and saved!=expected_context:raise Conflict('Your cart changed during sign-in. Please try again.')
             if context is None:data=saved
+            if saved.get('_ignore_basic') and identity['role']!='operator':data['_ignore_basic']=True
             if context is not None and data.get('cart',{}).get('restaurant_id') and data.get('workspace_id'):
                 source=c.execute('SELECT data FROM workspaces WHERE id=?',(saved.get('workspace_id'),)).fetchone()
                 target=c.execute('SELECT data FROM workspaces WHERE id=?',(data['workspace_id'],)).fetchone()
                 if source and target:
                     origin=json.loads(source['data']);destination=json.loads(target['data'])
                     if origin.get('restaurant_id')==data['cart']['restaurant_id']:
-                        destination.update({k:origin[k] for k in ['restaurant_id','zone','couriers','run_id']});c.execute('UPDATE workspaces SET data=? WHERE id=?',(json.dumps(destination),destination['id']))
+                        rid=origin['restaurant_id']
+                        if destination.get('restaurant_id') and destination['restaurant_id']!=rid:
+                            found=c.execute("SELECT w.data FROM workspaces w JOIN web_workspace_owners o ON o.workspace_id=w.id WHERE o.owner=? AND json_extract(w.data,'$.restaurant_id')=? AND json_extract(w.data,'$.customer_id')=? LIMIT 1",(identity['owner'],rid,destination['customer_id'])).fetchone()
+                            if found:destination=json.loads(found['data'])
+                            else:
+                                destination={**destination,'id':str(uuid.uuid4()),'orders':[],'created_at':datetime.now(timezone.utc).isoformat()}
+                                c.execute('INSERT INTO workspaces VALUES(?,?)',(destination['id'],json.dumps(destination)));c.execute('INSERT INTO web_workspace_owners VALUES(?,?)',(destination['id'],identity['owner']))
+                        destination.update({k:origin[k] for k in ['restaurant_id','zone','couriers','run_id']});destination['name']=origin['name'];data['workspace_id']=destination['id']
+                        c.execute('UPDATE workspaces SET data=? WHERE id=?',(json.dumps(destination),destination['id']))
             if new_account:c.execute('INSERT INTO web_accounts VALUES(?,?,?,?,?,?)',new_account)
             if adopt_owner:c.execute('UPDATE web_workspace_owners SET owner=? WHERE owner=?',(identity['owner'],adopt_owner))
             c.execute('INSERT INTO sessions VALUES(?,?,?,?)',(new_sid,csrf,json.dumps(data),time.time()))
