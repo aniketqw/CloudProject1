@@ -317,6 +317,13 @@ class Configuration(unittest.TestCase):
             self.assertEqual(values["managedFlink"]["env"]["KAFKA_SECRET_VERSION"],
                 "projects/assignment-test-123/secrets/food-kafka/versions/8")
             spec({**values["env"], **values["managedFlink"]["env"]})
+            with patch("deploy.configure.ROOT", root):
+                render({**CONFIG, "image_tag": "web-only-release-2", "analytics_release": CONFIG["image_tag"]},
+                       outputs={"secret_versions": {"value": {"db-password": "7", "kafka": "8", "web-access": "9"}}})
+            updated = json.loads((output/"food-values.json").read_text())
+            self.assertNotEqual(updated["image"], values["image"])
+            self.assertEqual(release_key({**updated["env"], **updated["managedFlink"]["env"]}),
+                             release_key({**values["env"], **values["managedFlink"]["env"]}))
             self.assertEqual(values["workloads"]["task-scheduler"]["replicas"], 2)
             self.assertEqual(sum(bool(v.get("hpa")) for v in values["workloads"].values()), 2)
     def test_offline_preview_never_constructs_cloud_clients(self):

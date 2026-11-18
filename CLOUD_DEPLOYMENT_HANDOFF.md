@@ -1,6 +1,6 @@
 # Cloud deployment handoff and local source recovery
 
-Prepared: 14 November 2026. Updated: 15 November 2026.
+Prepared: 14 November 2026. Updated: 18 November 2026.
 
 ## 1. What is ready
 
@@ -196,7 +196,7 @@ Copy the template:
 Copy-Item -LiteralPath deploy/config.example.json -Destination deploy/config.team.json
 ```
 
-Edit `deploy/config.team.json` locally. It is ignored by Git. Use the 17 fields below with their original JSON types. Older configuration files may omit `compute_profile`; it defaults to `demo`.
+Edit `deploy/config.team.json` locally. It is ignored by Git. Use the fields below with their original JSON types. Older configuration files may omit `compute_profile`; it defaults to `demo`. The optional `analytics_release` is useful when only the web/application image changes.
 
 | Field | Meaning |
 | --- | --- |
@@ -207,7 +207,8 @@ Edit `deploy/config.team.json` locally. It is ignored by Git. Use the 17 fields 
 | `public_host` | Real DNS hostname, without `https://` |
 | `git_repository` | Credential-free HTTPS repository URL |
 | `git_revision` | Use a new release tag, for example `cloud-release-v1` |
-| `image_tag` | Use the same unique immutable release label; never `latest`, `dev` or `local` |
+| `image_tag` | Unique immutable application image label; never `latest`, `dev` or `local` |
+| `analytics_release` (optional) | Immutable analytics JAR/release label; defaults to `image_tag`. Keep the existing value for a web-only update so the active Flink run retains its identity. |
 | `kafka_bootstrap` | Confluent broker hostname and `:9092` |
 | `kafka_cluster_id` | Actual `lkc-...` cluster ID |
 | `kafka_rest_endpoint` | Credential-free HTTPS cluster REST endpoint |
@@ -219,6 +220,8 @@ Edit `deploy/config.team.json` locally. It is ignored by Git. Use the 17 fields 
 | `compute_profile` | Use `demo` for the small presentation deployment; `standard` requires explicit owner agreement |
 
 Do not use template placeholder values. Do not add API keys/passwords to this file.
+
+An existing running analytics job must keep its configured `analytics_release` during a web-only update. Changing that value requires a separate savepoint migration; never start a second job over the same consumer group/checkpoint state. Keep all configuration unchanged during a pause/resume cycle.
 
 For the first deployment, replace the template's `git_revision` and `image_tag` with the same new, unused release label, such as `cloud-release-v1`. The template's `dev` revision is not the immutable release used by this runbook. Choose the label before rendering, but create its Git tag only after the generated deployment manifests are committed in section 9. This makes the release tag resolve to the commit containing its own deployment configuration. Do not point the first deployment directly at the baseline commit: that commit does not contain the generated `deploy/environments/team` files.
 
@@ -448,7 +451,7 @@ Published to `main` on 15 November 2026. The default `compute_profile` is `demo`
 | Managed analytics disk | 30 GB standard persistent disk |
 | Cloud SQL | `db-g1-small`, 10 GB storage, maximum 50 connections |
 | Kafka event retention | 21 days by default; applied-policy receipt required before pausing |
-| Application MySQL pools | Two connections per API process, one per SQL background process, no overflow |
+| Application MySQL pools | Two connections per API process and one per SQL background process, without overflow; Notification uses four plus one overflow slot for two fenced senders, independent receipts and inbox reads |
 | Application resource requests | Normally 50m CPU / 128 MiB; small background workers request 25m CPU |
 | Required coordination | Three ZooKeeper members and two scheduler/worker replicas are preserved |
 | Autoscaling evidence | Customer and Order retain independent CPU + memory HPAs; demo maximum is four replicas each |
