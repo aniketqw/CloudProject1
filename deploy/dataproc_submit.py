@@ -49,6 +49,9 @@ def spec(env):
             "jarFileUris": [env["ANALYTICS_JAR_URI"]],
             "args": ["--settings-json=" + json.dumps(settings, separators=(",", ":"))],
             "properties": {"parallelism.default": "1", "execution.checkpointing.interval": "10s",
+                           # Kafka types cross the parent-loaded Flink connector API.
+                           # Resolve them in the same loader on Dataproc application mode.
+                           "classloader.parent-first-patterns.additional": "org.apache.kafka.",
                            "yarn.application.name": "food-analytics-" + digest}}}
     if savepoint:
         job["flinkJob"]["savepointUri"] = savepoint
