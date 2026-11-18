@@ -24,6 +24,8 @@ def apply_to_values(config, values):
         for workload in values["workloads"].values():
             if not workload.get("factory") and not workload.get("port"):
                 workload["resources"] = {"requests": {"cpu": "25m", "memory": "128Mi"}, "limits": {"cpu": "500m", "memory": "512Mi"}}
+        # Presentation traffic envelope; the 60-VU probe exceeded demo SQL latency.
+        values["loadTest"]["env"]["VUS"] = "12"
         values["hpa"]["max"] = 4
         values["workloads"]["customer-service"]["resources"] = {
             "requests": {"cpu": "50m", "memory": "128Mi"},

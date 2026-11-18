@@ -1,6 +1,6 @@
 {
   "profile": "cloud",
-  "image": "us-central1-docker.pkg.dev/cloudproject-515012/food-app/app:cloud-release-20261118-v5",
+  "image": "us-central1-docker.pkg.dev/cloudproject-515012/food-app/app:cloud-release-20261118-v6",
   "imagePullPolicy": "IfNotPresent",
   "projectId": "cloudproject-515012",
   "publicOrigin": "https://food-136-69-72-1.sslip.io",
@@ -493,7 +493,7 @@
     "enabled": false,
     "runId": "reviewed-run-1",
     "env": {
-      "VUS": "60",
+      "VUS": "12",
       "RAMP": "1m",
       "HOLD": "8m",
       "PAUSE": "0.1"

@@ -40,5 +40,5 @@ export default function(data){
 export function handleSummary(data){
  const names=['http_reqs','http_req_failed','http_req_duration','business_errors','checks','iterations'];
  const metrics=Object.fromEntries(names.map(name=>[name,data.metrics[name]?.values]));
- return {stdout:'K6_SUMMARY '+JSON.stringify({state:data.state,metrics})+'\\n'};
+ return {stdout:'K6_SUMMARY '+JSON.stringify({state:data.state,metrics})+'\n'};
 }
