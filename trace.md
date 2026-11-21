@@ -31,6 +31,8 @@ Git history so far (2026-11-21):
 - Commit messages carry no co-author or tool attribution.
 - `main` is still `a0057c8`.
 
+History rewrite (2026-11-21): `iac-integration` was force-pushed once to remove a log file that had been committed by mistake and held cloud account identifiers. Commit hashes after `2f715ba` on that branch changed as a result. The removed file stays only as a local, untracked file. The old commit may remain fetchable on the remote by its hash until the host purges it. Rule from this: stage explicit files only, never `git add -f` a whole folder, and read `git diff --cached --stat` before every commit.
+
 Docs in git: the repo's `.gitignore` ignores `*.md` and `*.log` ("source-only Git update"). At the owner's request `trace.md`, `IAC_REQUIREMENT_ANALYSIS.md` and `logs/` were added with `git add -f`; `.gitignore` itself was left unchanged. New docs and logs must be force-added the same way. Local usernames and paths were replaced with placeholders in the logs before publishing.
 
 Any later work branch follows the same path: cut from `main`, merged into `iac-integration`. Merging into `main` is the owner's decision.
