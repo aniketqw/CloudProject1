@@ -1,0 +1,30 @@
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+
+Error: Invalid function argument
+
+  on main.tf line 91, in locals:
+  91:   profiles = jsondecode(file("${path.module}/../../profiles.json"))
+    ├────────────────
+    │ while calling file(path)
+    │ path.module is "."
+
+Invalid value for "path" parameter: no file exists at
+"./../../profiles.json"; this function works only with files that are
+distributed as part of the configuration source code, so if this file will be
+created by a resource in this configuration you must instead obtain this
+result from an attribute of that resource.
+
+Error: Error in function call
+
+  on main.tf line 698, in resource "google_storage_bucket_object" "function":
+ 698:   name   = format("function-%s.zip", filesha256("../../../.local-build/artifacts/notification-function.zip"))
+    ├────────────────
+    │ while calling filesha256(path)
+
+Call to function "filesha256" failed: open
+../../../.local-build/artifacts/notification-function.zip: no such file or
+directory.
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
