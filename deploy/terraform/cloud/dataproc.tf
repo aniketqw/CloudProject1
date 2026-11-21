@@ -7,6 +7,12 @@ resource "google_dataproc_cluster" "flink" {
     staging_bucket = google_storage_bucket.artifacts.name
     temp_bucket    = google_storage_bucket.checkpoints.name
 
+    # Component Gateway: opens the Flink and YARN web UIs from the Cloud console
+    # even though the cluster has no external IP.
+    endpoint_config {
+      enable_http_port_access = true
+    }
+
     gce_cluster_config {
       zone                   = var.zone
       subnetwork             = google_compute_subnetwork.subnet.id

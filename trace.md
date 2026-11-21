@@ -128,6 +128,7 @@ Purpose: before, a plain apply failed because the function ZIP, images and Flink
 | T-012 | MODIFIED | `deploy/terraform/cloud/.terraform.lock.hcl` | Regenerated for six providers on four platforms. | Lock file must list the new providers. | `git checkout -- deploy/terraform/cloud/.terraform.lock.hcl` | same |
 
 How it was verified: `terraform validate` and `terraform fmt -check` pass. A targeted local apply (no cloud contact) produced the right values: image name `asia-south1-docker.pkg.dev/<project>/<prefix>-app/app:<tag>`, jar name `restaurant-analytics-<tag>.jar`, source hashes, and a ZIP holding exactly `main.py` and `requirements.txt`. The docker build, push and jar upload themselves were **not** run (they need Docker, gcloud and a real project).
+| T-016 | MODIFIED | `deploy/terraform/cloud/artifacts.tf` | Both image builds now set `platform = "linux/amd64"`. | The deploying machine is an Apple-silicon (ARM) Mac; without this the images would be ARM and fail on GKE's Intel nodes. | remove the two `platform` lines | `logs/T-016-amd64-builds.log` |
 
 ## Group H: Documentation of the system
 | ID | Action | Path | What | Relevance | Undo | Log |
@@ -169,6 +170,17 @@ Facts checked: `google_dataproc_job` has no Flink job type (only Hadoop, Hive, P
 | T-015 | MODIFIED | `deploy/initialize.py` | Removed the Firestore seed and its import; it now only creates the SQL tables. | Avoids creating the same document twice. | `git checkout main -- deploy/initialize.py` | same |
 
 Note: `local/seed.py` (the separate local-development seeding) was not changed.
+
+## Group L: Support for the demo (requirements a to h)
+Purpose: map every course requirement to the code and prepare what the live demos need.
+
+| ID | Action | Path | What | Relevance | Undo | Log |
+|---|---|---|---|---|---|---|
+| T-016 | MODIFIED | `deploy/terraform/cloud/dataproc.tf` | Added `endpoint_config { enable_http_port_access = true }` (Component Gateway). | Lets the Flink and YARN web UIs be opened from the Cloud console for demo E, although the cluster has no external IP. | remove the `endpoint_config` block | `logs/T-016-demo-support-terraform.log` |
+| T-016 | MODIFIED | `deploy/terraform/cloud/monitoring.tf` | Dashboard gains three tiles: CPU request utilization of customer-service and order-service pods, running pod counts of both, and error log lines from the services and the analytics cluster. Added two log-based metrics (`<prefix>_service_error_logs`, `<prefix>_analytics_error_logs`). | Shows HPA scale-out in Cloud Monitoring for demo C and centralized logging for demo H. | revert the added tiles and the two `google_logging_metric` resources | same |
+| T-017 | ADDED | `REQUIREMENTS_MAP.md` | Requirement-to-code map, architecture diagram, per-requirement demo runbook (A to H), storage table and known gaps. | The material for the instructor demos. | `rm REQUIREMENTS_MAP.md` | none |
+
+How it was verified: `terraform validate` and `terraform fmt -check` pass; the two edited test files pass. Filters, tiles, the Component Gateway and the commands in the runbook have not been run on a real project.
 
 ---
 

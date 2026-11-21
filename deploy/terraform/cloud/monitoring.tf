@@ -132,9 +132,114 @@ resource "google_monitoring_dashboard" "platform" {
             }
           }
         },
+        {
+          yPos   = 8
+          width  = 6
+          height = 4
+          widget = {
+            title = "CPU request utilization of the autoscaled services (HPA target 60%)"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter      = "resource.type = \"k8s_container\" AND resource.labels.cluster_name = \"${google_container_cluster.gke.name}\" AND resource.labels.pod_name = monitoring.regex.full_match(\"(customer|order)-service-.*\") AND metric.type = \"kubernetes.io/container/cpu/request_utilization\""
+                    aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_MEAN", groupByFields = ["resource.label.pod_name"], crossSeriesReducer = "REDUCE_MEAN" }
+                  }
+                }
+              }]
+            }
+          }
+        },
+        {
+          xPos   = 6
+          yPos   = 8
+          width  = 6
+          height = 4
+          widget = {
+            title = "Running pods: customer-service and order-service (scales out under load)"
+            xyChart = {
+              dataSets = [
+                {
+                  legendTemplate = "customer-service"
+                  timeSeriesQuery = {
+                    timeSeriesFilter = {
+                      filter      = "resource.type = \"k8s_container\" AND resource.labels.cluster_name = \"${google_container_cluster.gke.name}\" AND resource.labels.pod_name = monitoring.regex.full_match(\"customer-service-.*\") AND metric.type = \"kubernetes.io/container/uptime\""
+                      aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_MAX", crossSeriesReducer = "REDUCE_COUNT" }
+                    }
+                  }
+                },
+                {
+                  legendTemplate = "order-service"
+                  timeSeriesQuery = {
+                    timeSeriesFilter = {
+                      filter      = "resource.type = \"k8s_container\" AND resource.labels.cluster_name = \"${google_container_cluster.gke.name}\" AND resource.labels.pod_name = monitoring.regex.full_match(\"order-service-.*\") AND metric.type = \"kubernetes.io/container/uptime\""
+                      aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_MAX", crossSeriesReducer = "REDUCE_COUNT" }
+                    }
+                  }
+                },
+              ]
+            }
+          }
+        },
+        {
+          yPos   = 12
+          width  = 12
+          height = 4
+          widget = {
+            title = "Error log lines: microservices and the Flink analytics cluster (from Cloud Logging)"
+            xyChart = {
+              dataSets = [
+                {
+                  legendTemplate = "microservices"
+                  timeSeriesQuery = {
+                    timeSeriesFilter = {
+                      filter      = "metric.type = \"logging.googleapis.com/user/${google_logging_metric.service_errors.name}\""
+                      aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_RATE", crossSeriesReducer = "REDUCE_SUM" }
+                    }
+                  }
+                },
+                {
+                  legendTemplate = "analytics (Dataproc)"
+                  timeSeriesQuery = {
+                    timeSeriesFilter = {
+                      filter      = "metric.type = \"logging.googleapis.com/user/${google_logging_metric.analytics_errors.name}\""
+                      aggregation = { alignmentPeriod = "60s", perSeriesAligner = "ALIGN_RATE", crossSeriesReducer = "REDUCE_SUM" }
+                    }
+                  }
+                },
+              ]
+            }
+          }
+        },
       ]
     }
   })
+
+  depends_on = [google_project_service.apis]
+}
+
+# Log-based metrics: Cloud Logging is the centralized log store for every workload.
+# GKE ships all container logs and the Dataproc cluster ships its job logs (see gke.tf, dataproc.tf).
+resource "google_logging_metric" "service_errors" {
+  name   = "${var.prefix}_service_error_logs"
+  filter = "resource.type = \"k8s_container\" AND resource.labels.cluster_name = \"${google_container_cluster.gke.name}\" AND resource.labels.namespace_name = \"food\" AND severity >= ERROR"
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_logging_metric" "analytics_errors" {
+  name   = "${var.prefix}_analytics_error_logs"
+  filter = "resource.type = \"cloud_dataproc_cluster\" AND resource.labels.cluster_name = \"${google_dataproc_cluster.flink.name}\" AND severity >= ERROR"
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+  }
 
   depends_on = [google_project_service.apis]
 }
