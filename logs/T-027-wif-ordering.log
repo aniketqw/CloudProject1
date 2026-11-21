@@ -1,0 +1,6 @@
+## T-027 workload identity ordering defect
+origin: original code (main branch main.tf.json: six wif_* bindings without depends_on on the cluster)
+first apply: stopped at 78 of 110 resources; six errors 'Identity Pool does not exist'
+fix: depends_on = [google_container_cluster.gke] on wif_sql, wif_firestore, wif_combined, wif_notification, wif_eso, wif_launcher
+re-plan after fix: Plan: 32 to add, 0 to change, 0 to destroy
+resumed apply: no errors up to 23 of 32 at the time of writing

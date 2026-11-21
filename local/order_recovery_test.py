@@ -21,7 +21,7 @@ def http(method, port, path, payload=None, key=None):
 
 
 def compose(arguments):
-    result = subprocess.run(["docker", "compose", "--env-file", ".env.local.example", *arguments],
+    result = subprocess.run(["docker", "compose", "--env-file", ".env.example", *arguments],
                             cwd=ROOT, capture_output=True, text=True, timeout=180)
     if result.returncode:
         raise RuntimeError("A scoped local Docker Compose operation failed; review local service status.")

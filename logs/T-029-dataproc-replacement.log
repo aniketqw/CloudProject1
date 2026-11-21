@@ -1,0 +1,4 @@
+## dataproc forced replacement (original-code defect)
+plan before: 7 to add, 0 to change, 2 to destroy (function + dataproc must be replaced)
+cause: worker_config machine_type, boot_disk_size_gb, boot_disk_type forces replacement when flink_workers = 0, plus missing default scopes
+plan after fix: 6 to add, 0 to change, 1 to destroy (only the tainted function); no 'forces replacement' lines

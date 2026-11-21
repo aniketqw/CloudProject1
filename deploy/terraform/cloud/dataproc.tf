@@ -14,12 +14,19 @@ resource "google_dataproc_cluster" "flink" {
     }
 
     gce_cluster_config {
-      zone                   = var.zone
-      subnetwork             = google_compute_subnetwork.subnet.id
-      internal_ip_only       = true
-      service_account        = google_service_account.identities["flink"].email
-      service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-      tags                   = ["${var.prefix}-dataproc"]
+      zone             = var.zone
+      subnetwork       = google_compute_subnetwork.subnet.id
+      internal_ip_only = true
+      service_account  = google_service_account.identities["flink"].email
+      # Google always adds the last three to Dataproc clusters. Listing only cloud-platform made every later
+      # plan read back a difference and try to replace the whole cluster.
+      service_account_scopes = [
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/cloud.useraccounts.readonly",
+        "https://www.googleapis.com/auth/devstorage.read_write",
+        "https://www.googleapis.com/auth/logging.write",
+      ]
+      tags = ["${var.prefix}-dataproc"]
       metadata = {
         "enable-oslogin" = "TRUE"
       }
@@ -35,13 +42,18 @@ resource "google_dataproc_cluster" "flink" {
       }
     }
 
+    # With zero workers (the demo profile) Google stores no machine type or disk for this group.
+    # Setting them anyway made every plan read back a difference that forces replacing the cluster.
     worker_config {
       num_instances = local.capacity.flink_workers
-      machine_type  = local.capacity.flink_machine
+      machine_type  = local.capacity.flink_workers == 0 ? null : local.capacity.flink_machine
 
-      disk_config {
-        boot_disk_size_gb = local.capacity.flink_disk_gb
-        boot_disk_type    = "pd-standard"
+      dynamic "disk_config" {
+        for_each = local.capacity.flink_workers == 0 ? [] : [1]
+        content {
+          boot_disk_size_gb = local.capacity.flink_disk_gb
+          boot_disk_type    = "pd-standard"
+        }
       }
     }
 

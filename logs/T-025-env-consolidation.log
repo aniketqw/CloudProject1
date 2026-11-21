@@ -1,0 +1,6 @@
+## T-025 env consolidation Sat Nov 21 14:17:18 IST 2026
+compose config, assignment stack before vs after: identical
+compose config, local stack before vs after: identical
+plan from .env alone: Plan: 110 to add, 0 to change, 0 to destroy
+deleted: .env.kafka.example .env.local.example .env.assignment.example
+old private files in home folder deleted after values moved into .env

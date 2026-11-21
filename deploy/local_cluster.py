@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 import subprocess
 ROOT=Path(__file__).resolve().parents[1]
-COMPOSE=["docker","compose","-p","food-assignment","--env-file",".env.local.example","--env-file",".env.assignment.example","-f","compose.yaml","-f","compose.assignment.yaml"]
+from deploy.assignment_stack import COMPOSE, environment
 def run(command,**kwargs):return subprocess.run(command,cwd=ROOT,check=True,**kwargs)
 def main():
     fixture=ROOT/".local-build/gitops-fixture"
@@ -21,10 +21,10 @@ def main():
     values["metrics"]["enabled"]=False;values["secrets"]["enabled"]=False
     values["managedFlink"]["enabled"]=False;values["zookeeper"]["enabled"]=False
     values["serviceAccounts"]={key:"" for key in values["serviceAccounts"]}
-    config=json.loads(subprocess.check_output(COMPOSE+["config","--format","json"],cwd=ROOT,encoding="utf-8"))
+    config=json.loads(subprocess.check_output(COMPOSE+["config","--format","json"],cwd=ROOT,encoding="utf-8",env=environment()))
     local=config["services"]["order-service"]["environment"]
     expected={}
-    for line in (ROOT/".env.local.example").read_text().splitlines():
+    for line in (ROOT/".env.example").read_text().splitlines():
         if "=" in line and not line.startswith("#"):
             key,value=line.split("=",1);expected[key]=value.strip().strip('"')
     if local["DB_PASSWORD"]!=expected["LOCAL_DB_PASSWORD"]:raise RuntimeError("Refusing to copy a host credential override into the disposable fixture.")
@@ -39,7 +39,7 @@ def main():
     proxy_ip=info["NetworkSettings"]["Networks"]["kind"]["IPAddress"]
     external=[]
     for name,port in [("mysql",3306),("kafka",9092),("firestore",8080),("gcs",4443),("pubsub",8085),("zookeeper-1",2181),("zookeeper-2",2181),("zookeeper-3",2181)]:
-        cid=subprocess.check_output(COMPOSE+["ps","-q",name],cwd=ROOT,encoding="utf-8").strip()
+        cid=subprocess.check_output(COMPOSE+["ps","-q",name],cwd=ROOT,encoding="utf-8",env=environment()).strip()
         info=json.loads(subprocess.check_output(["docker","inspect",cid],encoding="utf-8"))[0]
         ip=proxy_ip
         target_port=22180+int(name.rsplit("-",1)[1]) if name.startswith("zookeeper-") else port

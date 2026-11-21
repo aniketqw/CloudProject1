@@ -28,7 +28,7 @@ def http(method, path, payload=None, *, key=None, base=BASE):
 
 
 def compose(arguments):
-    result = subprocess.run(["docker", "compose", "--env-file", ".env.local.example", *arguments],
+    result = subprocess.run(["docker", "compose", "--env-file", ".env.example", *arguments],
                             cwd=ROOT, capture_output=True, text=True, timeout=180)
     if result.returncode:
         raise RuntimeError("A scoped scheduler recovery operation failed; inspect local service status.")

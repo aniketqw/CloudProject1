@@ -13,7 +13,7 @@ ROOT=Path(__file__).resolve().parents[1]
 WORKERS=["payment-worker-a","payment-worker-b"]
 
 def compose(args):
-    result=subprocess.run(["docker","compose","--env-file",".env.local.example",*args],cwd=ROOT,
+    result=subprocess.run(["docker","compose","--env-file",".env.example",*args],cwd=ROOT,
                           capture_output=True,text=True,timeout=180)
     if result.returncode:
         raise RuntimeError("A scoped payment recovery operation failed; inspect local service health.")
