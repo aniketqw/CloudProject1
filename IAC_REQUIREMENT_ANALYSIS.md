@@ -93,7 +93,7 @@ Food-delivery platform with 8 Python/Flask services, a Flink analytics job (Java
 | 2 | Merge into one root module | **Done** (Group E); state bucket bootstrap stays separate |
 | 3 | Remove cluster-before-apply dependency | **Done** (Group E): helm provider built from the cluster; Argo root app via Helm chart |
 | 4 | Move artifact production into Terraform | **Done** (Group G), not run against a real project; the Flink jar copy is one `local-exec` step |
-| 5 | Replace Python provisioning | Not started |
+| 5 | Replace Python provisioning | **Decided** (Group J): Firestore seed moved to Terraform; table creation, Flink submit and pause/resume kept and documented as application or operations steps, not provisioning |
 | 6 | Add monitoring and other missing infra | **Done** for monitoring (Group I); DNS zone and Kafka cluster stay outside Terraform |
 | 7 | Secrets as variables | **Done** (Group I): `TF_VAR_*`, `secret_inputs.py` removed |
 | 8 | Delete stale lock files, update handoff doc | Lock files **done**; handoff doc not started |

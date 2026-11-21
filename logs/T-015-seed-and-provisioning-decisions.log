@@ -1,0 +1,12 @@
+## T-015 validation Sat Nov 21 13:34:39 IST 2026
+Success! The configuration is valid.
+
+fmt clean
+## tests
+Ran 42 tests in 0.065s
+
+OK
+## full suite (baseline 11 import errors)
+Ran 78 tests in 0.072s
+
+FAILED (errors=11)
