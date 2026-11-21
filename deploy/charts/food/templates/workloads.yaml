@@ -38,7 +38,7 @@ spec:
         - name: cloud-sql-proxy
           image: {{ $.Values.sqlProxyImage | quote }}
           restartPolicy: Always
-          args: ["--private-ip","--structured-logs","--port=3306",{{ $.Values.cloudSqlConnection | quote }}]
+          args: ["--private-ip","--structured-logs","--port=3306","--address=0.0.0.0",{{ $.Values.cloudSqlConnection | quote }}]
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: ["ALL"]}}
           resources: {{ $.Values.sqlProxyResources | toJson }}
           startupProbe:

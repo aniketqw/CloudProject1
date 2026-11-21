@@ -61,7 +61,8 @@ locals {
       }
     }
 
-    ingress = { ipName = google_compute_global_address.web.name }
+    # A placeholder (.invalid) host can never get a Google-managed certificate, and the sync would wait for it forever.
+    ingress = { enabled = !endswith(var.public_host, ".invalid"), ipName = google_compute_global_address.web.name }
 
     secrets = {
       db    = google_secret_manager_secret.config["db-password"].secret_id
