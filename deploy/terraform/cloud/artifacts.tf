@@ -39,7 +39,8 @@ resource "docker_image" "app" {
 
   build {
     context    = abspath(local.repo_root)
-    dockerfile = "Dockerfile.local"
+    dockerfile = abspath("${local.repo_root}/Dockerfile.local")
+    builder    = "default"     # buildx: the provider's classic builder fails with a 403 on Docker Desktop
     platform   = "linux/amd64" # GKE nodes are Intel; an ARM image built on an Apple-silicon Mac would not start
   }
 
@@ -62,8 +63,10 @@ resource "docker_image" "analytics" {
   name  = "food-restaurant-analytics:${local.image_tag}"
 
   build {
-    context  = abspath("${local.repo_root}/restaurant_service/analytics")
-    platform = "linux/amd64"
+    context    = abspath("${local.repo_root}/restaurant_service/analytics")
+    dockerfile = abspath("${local.repo_root}/restaurant_service/analytics/Dockerfile")
+    builder    = "default"
+    platform   = "linux/amd64"
   }
 
   triggers = {

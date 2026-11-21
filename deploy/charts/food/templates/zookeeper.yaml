@@ -31,7 +31,7 @@ spec:
             - name: POD_INDEX
               valueFrom: {fieldRef: {fieldPath: "metadata.labels['apps.kubernetes.io/pod-index']"}}
             - {name: ZOO_SERVERS, value: "server.1=zookeeper-0.zookeeper:2888:3888;2181 server.2=zookeeper-1.zookeeper:2888:3888;2181 server.3=zookeeper-2.zookeeper:2888:3888;2181"}
-            - {name: ZOO_4LW_COMMANDS_WHITELIST, value: ruok,mntr,srvr}
+            - {name: ZOO_4LW_COMMANDS_WHITELIST, value: "ruok,mntr,srvr"}
             - {name: JVMFLAGS, value: "-Xms128m -Xmx256m"}
           ports: [{name: client, containerPort: 2181}, {name: peer, containerPort: 2888}, {name: election, containerPort: 3888}]
           resources: {requests: {cpu: 100m, memory: 384Mi}, limits: {cpu: "1", memory: 768Mi}}
