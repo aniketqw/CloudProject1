@@ -307,7 +307,8 @@
   "zookeeper": {
     "enabled": true,
     "image": "zookeeper:3.9.3",
-    "storage": "2Gi"
+    "storage": "2Gi",
+    "budget": true
   },
   "webStorage": "2Gi",
   "ingress": {

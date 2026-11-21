@@ -49,11 +49,13 @@ spec:
   volumeClaimTemplates:
     - metadata: {name: data}
       spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: {{ .Values.zookeeper.storage }}}}}
+{{- if .Values.zookeeper.budget }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: {name: zookeeper}
 spec: {minAvailable: 2, selector: {matchLabels: {app: zookeeper}}}
+{{- end }}
 ---
 {{- range $i := until 3 }}
 apiVersion: v1

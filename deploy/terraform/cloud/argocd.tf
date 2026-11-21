@@ -62,6 +62,9 @@ locals {
     }
 
     # A placeholder (.invalid) host can never get a Google-managed certificate, and the sync would wait for it forever.
+    # While paused the budget is dropped: it forbids evicting ZooKeeper pods, so the node shrink would hang.
+    zookeeper = { budget = !var.paused }
+
     ingress = { enabled = !endswith(local.public_host, ".invalid"), ipName = google_compute_global_address.web.name }
 
     secrets = {
