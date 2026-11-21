@@ -1,8 +1,8 @@
 {
   "demo": {
     "gke_machine": "e2-standard-2",
-    "gke_nodes": 2,
-    "gke_max_nodes": 2,
+    "gke_nodes": 3,
+    "gke_max_nodes": 3,
     "gke_disk_gb": 30,
     "flink_machine": "e2-standard-2",
     "flink_workers": 0,
