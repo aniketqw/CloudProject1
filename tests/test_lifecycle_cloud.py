@@ -164,11 +164,11 @@ class Adapter(unittest.TestCase):
 class ReviewedPlans(unittest.TestCase):
     def environment(self, directory):
         root = Path(directory)
-        for name in ["deploy/config.team.json", "deploy/profiles.json", "deploy/terraform/cloud/main.tf.json",
+        for name in ["deploy/config.team.json", "deploy/profiles.json", "deploy/terraform/cloud/main.tf",
                      ".local-build/config/team/cloud.tfvars.json", ".local-build/config/team/cloud-backend.hcl",
                      "deploy/terraform/cloud/secrets.auto.tfvars.json"]:
             path = root/name;path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(CONFIG) if name.endswith("config.team.json") else "{}")
+            path.write_text(json.dumps(CONFIG) if name.endswith("config.team.json") else '{"kafka_retention_days":21}' if name.endswith("cloud.tfvars.json") else "{}")
         return root
 
     def test_apply_uses_reviewed_file_without_running_a_second_plan(self):
@@ -182,6 +182,7 @@ class ReviewedPlans(unittest.TestCase):
                         Path(value.split("=", 1)[1]).write_bytes(b"synthetic-terraform-plan")
                 return SimpleNamespace(stdout='{"resource_id":{"value":"synthetic"}}')
             with patch("deploy.cloud_stage.ROOT", root), patch("deploy.cloud_stage.guard_running"), \
+                 patch("deploy.cloud_stage.GCSStore", return_value=Store()), \
                  patch("deploy.cloud_stage.resolve", side_effect=lambda args: args), \
                  patch("deploy.cloud_stage.subprocess.run", side_effect=command), patch("sys.stdout", new_callable=io.StringIO):
                 cloud_stage.main(["cloud"])
@@ -194,11 +195,7 @@ class ReviewedPlans(unittest.TestCase):
     def test_kafka_policy_receipt_is_written_only_after_successful_apply(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.environment(directory)
-            folder = root/"deploy/terraform/kafka";folder.mkdir(parents=True)
-            (folder/"main.tf.json").write_text("{}")
-            (folder/"secrets.auto.tfvars.json").write_text('{"marker":"synthetic-private"}')
-            (root/".local-build/config/team/kafka.tfvars.json").write_text('{"retention_days":21}')
-            (root/".local-build/config/team/kafka-backend.hcl").write_text("")
+            (root/".local-build/config/team/cloud.tfvars.json").write_text('{"kafka_retention_days":21}')
             store = Store()
             def command(args, **kwargs):
                 for value in args:
@@ -209,9 +206,9 @@ class ReviewedPlans(unittest.TestCase):
                  patch("deploy.cloud_stage.GCSStore", return_value=store), \
                  patch("deploy.cloud_stage.resolve", side_effect=lambda args: args), \
                  patch("deploy.cloud_stage.subprocess.run", side_effect=command), patch("sys.stdout", new_callable=io.StringIO):
-                cloud_stage.main(["kafka"])
+                cloud_stage.main(["cloud"])
                 self.assertNotIn("kafka_policy", store.rows)
-                cloud_stage.main(["kafka", "--apply-reviewed"])
+                cloud_stage.main(["cloud", "--apply-reviewed"])
             self.assertEqual(store.rows["kafka_policy"]["retention_days"], 21)
             self.assertNotIn("synthetic-private", json.dumps(store.rows))
 

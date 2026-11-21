@@ -15,7 +15,7 @@ def file_hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def plan_inputs(config_path, folder, variables, backend):
-    paths = [config_path, variables, ROOT/"deploy/profiles.json", *folder.glob("*.tf.json")]
+    paths = [config_path, variables, ROOT/"deploy/profiles.json", *folder.glob("*.tf")]
     private = folder/"secrets.auto.tfvars.json"
     if private.exists():
         paths.append(private)
@@ -25,7 +25,7 @@ def plan_inputs(config_path, folder, variables, backend):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=["state", "cloud", "kafka", "kubeconfig", "controller", "gitops"])
+    parser.add_argument("stage", choices=["state", "cloud", "kubeconfig"])
     parser.add_argument("--apply", "--apply-reviewed", dest="apply", action="store_true",
                         help="Apply an existing, unchanged reviewed plan; never replan implicitly.")
     parser.add_argument("--allow-standard-capacity", action="store_true",
@@ -58,14 +58,7 @@ def main(argv=None):
         backend = inputs/(args.stage+"-backend.hcl") if args.stage != "state" else None
         run(command+["init", "-input=false"]+(["-backend-config="+str(backend)] if backend else []))
         variables = inputs/(args.stage+".tfvars.json")
-        if args.stage in {"controller", "gitops"}:
-            value = {"kubeconfig_path": str(kube), "kube_context": context}
-            if args.stage == "gitops":
-                value.update(repository=config["git_repository"], revision=config["git_revision"])
-            encoded = json.dumps(value, indent=2)+"\n"
-            if not variables.exists() or variables.read_text(encoding="utf-8") != encoded:
-                variables.write_text(encoded, encoding="utf-8")
-        if args.stage in {"cloud", "kafka"} and not (folder/"secrets.auto.tfvars.json").exists():
+        if args.stage == "cloud" and not (folder/"secrets.auto.tfvars.json").exists():
             raise LifecycleError("Create the ignored private input with deploy.secret_inputs before planning.")
         plan = inputs/(args.stage+".tfplan")
         receipt_path = inputs/(args.stage+"-plan-review.json")
@@ -81,12 +74,13 @@ def main(argv=None):
                 result = run(command+["output", "-json"], capture_output=True, encoding="utf-8")
                 # This root outputs resource IDs and version references, never secret values.
                 (inputs/"cloud-outputs.json").write_text(result.stdout, encoding="utf-8")
-            if args.stage == "kafka":
+                # Kafka topics are part of this root now; record the retention that was applied
+                # so pause/resume can prove events are retained.
                 store = GCSStore(config)
                 _, generation = store.read("kafka_policy")
                 policy = {"schema_version": 1, "context_key": context_key(config),
                     "cluster_id": config["kafka_cluster_id"], "broker": config["kafka_bootstrap"],
-                    "retention_days": json.loads(variables.read_text(encoding="utf-8"))["retention_days"],
+                    "retention_days": json.loads(variables.read_text(encoding="utf-8"))["kafka_retention_days"],
                     "applied_at": time.time(), "plan_sha256": receipt["plan_sha256"]}
                 store.write("kafka_policy", policy, generation)
             print("The exact reviewed plan was applied. Verify resources before the next stage.")

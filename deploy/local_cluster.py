@@ -61,26 +61,55 @@ def main():
     run(["docker","build","-t","food-local-gitops:fixture",str(server)],stdout=subprocess.DEVNULL)
     run(["docker","run","-d","--name","food-local-gitops","--network","kind","--mount",f"type=bind,source={fixture},target=/repos/gitops-fixture,readonly","food-local-gitops:fixture"],stdout=subprocess.DEVNULL)
     run([str(ROOT/".local-build/tools/kind.exe"),"load","docker-image","cloudproject1-app:handoff","--name","food-assignment"])
-    target=ROOT/".local-build/kind/gitops";target.mkdir(parents=True,exist_ok=True)
-    tf=json.loads((ROOT/"deploy/terraform/gitops/main.tf.json").read_text())
-    tf["terraform"].pop("backend",None)
-    root=tf["resource"]["kubernetes_manifest"]["root"]["manifest"]
-    root["metadata"]["name"]="food-local"
-    root["spec"]["source"].pop("directory",None)
-    root["spec"]["source"]["path"]="chart"
-    root["spec"]["destination"]["namespace"]="food"
-    (target/"main.tf.json").write_text(json.dumps(tf,indent=2))
+    target=ROOT/".local-build/kind/argocd";target.mkdir(parents=True,exist_ok=True)
+    module=(ROOT/"deploy/terraform/modules/argocd").as_posix()
+    (target/"main.tf").write_text(f'''terraform {{
+  required_providers {{
+    helm = {{
+      source  = "hashicorp/helm"
+      version = "3.1.1"
+    }}
+  }}
+}}
+
+variable "kubeconfig_path" {{
+  type = string
+}}
+
+variable "kube_context" {{
+  type = string
+}}
+
+variable "repository" {{
+  type = string
+}}
+
+variable "revision" {{
+  type = string
+}}
+
+provider "helm" {{
+  kubernetes = {{
+    config_path    = var.kubeconfig_path
+    config_context = var.kube_context
+  }}
+}}
+
+# Same module the cloud root uses, pointed at the local fixture repository.
+module "argocd" {{
+  source                = "{module}"
+  repository            = var.repository
+  revision              = var.revision
+  source_path           = "chart"
+  directory_include     = null
+  app_name              = "food-local"
+  destination_namespace = "food"
+  argocd_cm_extra       = {{ "resource.exclusions" = "" }}
+}}
+''')
     (target/"terraform.tfvars.json").write_text(json.dumps({"kubeconfig_path":str(ROOT/".local-build/kind/kubeconfig"),"kube_context":"kind-food-assignment","repository":"git://food-local-gitops/gitops-fixture","revision":"fixture"}))
     if "--bootstrap" in sys.argv:
-        controller=ROOT/".local-build/kind/controller";controller.mkdir(parents=True,exist_ok=True)
-        config=json.loads((ROOT/"deploy/terraform/controller/main.tf.json").read_text());config["terraform"].pop("backend",None)
-        helm_values=json.loads(config["resource"]["helm_release"]["argocd"]["values"][0])
-        helm_values["configs"]["cm"]["resource.exclusions"]=""
-        config["resource"]["helm_release"]["argocd"]["values"]=[json.dumps(helm_values)]
-        (controller/"main.tf.json").write_text(json.dumps(config,indent=2))
-        (controller/"terraform.tfvars.json").write_text(json.dumps({"kubeconfig_path":str(ROOT/".local-build/kind/kubeconfig"),"kube_context":"kind-food-assignment"}))
-        for stage in ("controller","gitops"):
-            run(["terraform","-chdir=.local-build/kind/"+stage,"init","-input=false"])
-            run(["terraform","-chdir=.local-build/kind/"+stage,"apply","-input=false","-auto-approve"])
+        run(["terraform","-chdir=.local-build/kind/argocd","init","-input=false"])
+        run(["terraform","-chdir=.local-build/kind/argocd","apply","-input=false","-auto-approve"])
     print("Sanitized local fixture is ready. Current development repository and remote were untouched.")
 if __name__=="__main__":main()

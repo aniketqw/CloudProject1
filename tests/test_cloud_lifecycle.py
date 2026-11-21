@@ -325,13 +325,12 @@ class Configuration(unittest.TestCase):
         with patch("sys.stderr", new_callable=io.StringIO), self.assertRaises(SystemExit):
             main(["pause", "--execute", "--example"])
     def test_shared_profile_source_and_persistent_volume_retention(self):
-        terraform = json.loads((ROOT/"deploy/terraform/cloud/main.tf.json").read_text())
-        self.assertEqual(terraform["variable"]["compute_profile"]["default"], "demo")
-        self.assertIn("../../profiles.json", terraform["locals"]["profiles"])
-        r = terraform["resource"]
-        self.assertEqual(r["google_container_node_pool"]["apps"]["autoscaling"]["max_node_count"], "$"+"{local.capacity.gke_max_nodes}")
-        self.assertEqual(r["google_dataproc_cluster"]["flink"]["cluster_config"]["worker_config"]["num_instances"], "$"+"{local.capacity.flink_workers}")
-        self.assertTrue(r["google_sql_database_instance"]["database"]["deletion_protection"])
+        terraform = "\n".join(path.read_text() for path in sorted((ROOT/"deploy/terraform/cloud").glob("*.tf")))
+        self.assertRegex(terraform, r'variable "compute_profile" \{\s+type\s+= string\s+default\s+= "demo"')
+        self.assertIn("../../profiles.json", terraform)
+        self.assertIn("max_node_count = local.capacity.gke_max_nodes", terraform)
+        self.assertIn("num_instances = local.capacity.flink_workers", terraform)
+        self.assertRegex(terraform, r'(?s)resource "google_sql_database_instance" "database" \{.{0,200}?deletion_protection = true')
         self.assertIn("whenScaled: Retain", (ROOT/"deploy/charts/food/templates/zookeeper.yaml").read_text())
     def test_plan_receipt_detects_input_changes_without_storing_private_values(self):
         with tempfile.TemporaryDirectory() as directory:
