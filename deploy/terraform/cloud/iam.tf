@@ -98,30 +98,45 @@ resource "google_service_account_iam_member" "wif_sql" {
   service_account_id = google_service_account.identities["sql"].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[food/food-sql]"
+
+  # The workload identity pool (<project>.svc.id.goog) is created together with the GKE cluster.
+  depends_on = [google_container_cluster.gke]
 }
 
 resource "google_service_account_iam_member" "wif_firestore" {
   service_account_id = google_service_account.identities["firestore"].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[food/food-firestore]"
+
+  # The workload identity pool (<project>.svc.id.goog) is created together with the GKE cluster.
+  depends_on = [google_container_cluster.gke]
 }
 
 resource "google_service_account_iam_member" "wif_combined" {
   service_account_id = google_service_account.identities["combined"].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[food/food-combined]"
+
+  # The workload identity pool (<project>.svc.id.goog) is created together with the GKE cluster.
+  depends_on = [google_container_cluster.gke]
 }
 
 resource "google_service_account_iam_member" "wif_notification" {
   service_account_id = google_service_account.identities["notify"].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[food/food-notification]"
+
+  # The workload identity pool (<project>.svc.id.goog) is created together with the GKE cluster.
+  depends_on = [google_container_cluster.gke]
 }
 
 resource "google_service_account_iam_member" "wif_eso" {
   service_account_id = google_service_account.identities["secrets"].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[food/food-eso]"
+
+  # The workload identity pool (<project>.svc.id.goog) is created together with the GKE cluster.
+  depends_on = [google_container_cluster.gke]
 }
 
 resource "google_service_account_iam_member" "pubsub_token" {
@@ -135,10 +150,27 @@ resource "google_service_account_iam_member" "wif_launcher" {
   service_account_id = google_service_account.identities["launcher"].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[food/food-launcher]"
+
+  # The workload identity pool (<project>.svc.id.goog) is created together with the GKE cluster.
+  depends_on = [google_container_cluster.gke]
 }
 
 resource "google_service_account_iam_member" "launcher_actas" {
   service_account_id = google_service_account.identities["flink"].name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.identities["launcher"].email}"
+}
+
+# Gen2 functions are built from a copy of the source that Google stages in its own bucket
+# (gcf-v2-sources-<project number>-<region>), which does not exist until the first function is created.
+# The build account therefore needs read access to that bucket by name pattern, not by reference.
+resource "google_project_iam_member" "build_function_sources" {
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.identities["build"].email}"
+
+  condition {
+    title      = "ReadFunctionSourcesOnly"
+    expression = "resource.name.startsWith(\"projects/_/buckets/gcf-v2-sources-${data.google_project.current.number}-${var.region}/\")"
+  }
 }

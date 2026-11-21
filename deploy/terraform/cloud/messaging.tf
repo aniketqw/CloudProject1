@@ -78,6 +78,7 @@ resource "google_cloudfunctions2_function" "notification" {
     google_storage_bucket_iam_member.function_read,
     google_artifact_registry_repository_iam_member.function_build,
     google_service_account_iam_member.pubsub_token,
+    google_project_iam_member.build_function_sources,
   ]
 }
 

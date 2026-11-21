@@ -7,9 +7,9 @@ import shutil
 import subprocess
 import uuid
 from deploy.configure import ROOT
-COMPOSE=["docker","compose","-p","food-assignment","--env-file",".env.local.example","--env-file",".env.assignment.example","-f","compose.yaml","-f","compose.assignment.yaml"]
+from deploy.assignment_stack import COMPOSE, environment
 def run(command):
-    env=dict(os.environ)
+    env=environment()
     helm_home=ROOT/".local-build/tools/helm"
     helm_home.mkdir(parents=True,exist_ok=True)
     env.update(HELM_CONFIG_HOME=str(helm_home/"config"),HELM_CACHE_HOME=str(helm_home/"cache"),HELM_DATA_HOME=str(helm_home/"data"))

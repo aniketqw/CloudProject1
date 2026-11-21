@@ -130,3 +130,16 @@ variable "alert_notification_channels" {
   default     = []
   description = "Existing Cloud Monitoring notification channel IDs to notify. Empty keeps alerts visible in the console only."
 }
+
+# -- Teardown
+variable "deletion_protection" {
+  type        = bool
+  default     = true
+  description = "Keeps the GKE cluster and the Cloud SQL instance from being deleted. To tear the platform down: apply once with this set to false, then run terraform destroy."
+}
+
+variable "force_destroy_buckets" {
+  type        = bool
+  default     = false
+  description = "Lets terraform destroy delete the receipts, checkpoints and artifacts buckets even when they hold files. Leave false normally; set true (and apply once) before tearing down."
+}

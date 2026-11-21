@@ -7,7 +7,7 @@ resource "google_sql_database_instance" "database" {
   name                = "${var.prefix}-sql"
   region              = var.region
   database_version    = "MYSQL_8_0"
-  deletion_protection = true
+  deletion_protection = var.deletion_protection
 
   settings {
     tier              = local.capacity.sql_tier

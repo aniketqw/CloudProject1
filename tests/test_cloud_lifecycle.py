@@ -330,7 +330,8 @@ class Configuration(unittest.TestCase):
         self.assertIn("../../profiles.json", terraform)
         self.assertIn("max_node_count = local.capacity.gke_max_nodes", terraform)
         self.assertIn("num_instances = local.capacity.flink_workers", terraform)
-        self.assertRegex(terraform, r'(?s)resource "google_sql_database_instance" "database" \{.{0,200}?deletion_protection = true')
+        self.assertRegex(terraform, r'(?s)resource "google_sql_database_instance" "database" \{.{0,200}?deletion_protection = var\.deletion_protection')
+        self.assertRegex(terraform, r'variable "deletion_protection" \{\s+type\s+= bool\s+default\s+= true')
         self.assertIn("whenScaled: Retain", (ROOT/"deploy/charts/food/templates/zookeeper.yaml").read_text())
     def test_plan_receipt_detects_input_changes_without_storing_private_values(self):
         with tempfile.TemporaryDirectory() as directory:
