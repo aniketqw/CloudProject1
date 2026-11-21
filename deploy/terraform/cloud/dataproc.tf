@@ -82,3 +82,14 @@ resource "google_dataproc_cluster" "flink" {
     google_compute_firewall.dataproc_internal,
   ]
 }
+
+# The Flink job id is derived from the release settings. Dataproc keeps finished jobs after a cluster is deleted, so a
+# rebuild with identical settings reused the id of a dead job and the launcher refused to submit. This value changes
+# whenever the cluster is created or replaced, so every cluster generation gets its own job id.
+resource "random_id" "analytics_run" {
+  byte_length = 4
+
+  lifecycle {
+    replace_triggered_by = [google_dataproc_cluster.flink]
+  }
+}
