@@ -1,0 +1,21 @@
+## T-007/T-008 removals Sat Nov 21 13:03:04 IST 2026
+D  customer_service/.terraform.lock.hcl
+M  deploy/cloud_stage.py
+M  deploy/local_cluster.py
+A  deploy/terraform/cloud/main.tf
+D  deploy/terraform/cloud/main.tf.json
+A  deploy/terraform/controller/main.tf
+D  deploy/terraform/controller/main.tf.json
+A  deploy/terraform/gitops/main.tf
+D  deploy/terraform/gitops/main.tf.json
+A  deploy/terraform/kafka/main.tf
+D  deploy/terraform/kafka/main.tf.json
+A  deploy/terraform/state/main.tf
+D  deploy/terraform/state/main.tf.json
+D  order_service/.terraform.lock.hcl
+D  restaurant_service/.terraform.lock.hcl
+M  tests/test_cloud_lifecycle.py
+M  tests/test_lifecycle_cloud.py
+--- remaining *.tf.json:
+(none expected)
+--- test baseline: full suite has 11 import errors (flask, flask_sqlalchemy, google.api_core not installed) both BEFORE and AFTER these changes

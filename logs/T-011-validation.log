@@ -1,0 +1,34 @@
+## T-011 validation Sat Nov 21 13:11:55 IST 2026
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
+fmt clean
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
+## unit tests
+----------------------------------------------------------------------
+Ran 42 tests in 0.062s
+
+FAILED (failures=1, errors=1)
+## full suite
+Ran 78 tests in 0.075s
+
+FAILED (failures=1, errors=12)
+## after test fixes Sat Nov 21 13:12:17 IST 2026
+----------------------------------------------------------------------
+Ran 42 tests in 0.061s
+
+FAILED (errors=1)
+## full suite (baseline had 11 import errors)
+Ran 78 tests in 0.066s
+
+FAILED (errors=12)
+## after fixture fix Sat Nov 21 13:12:26 IST 2026
+Ran 42 tests in 0.151s
+
+OK
+## full suite (baseline: 11 import errors, 0 failures)
+Ran 78 tests in 0.068s
+
+FAILED (errors=11)
