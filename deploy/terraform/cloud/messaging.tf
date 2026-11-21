@@ -32,9 +32,9 @@ resource "google_artifact_registry_repository_iam_member" "function_build" {
 }
 
 resource "google_storage_bucket_object" "function" {
-  name   = format("function-%s.zip", filesha256("../../../.local-build/artifacts/notification-function.zip"))
+  name   = format("function-%s.zip", data.archive_file.function.output_sha256)
   bucket = google_storage_bucket.artifacts.name
-  source = "../../../.local-build/artifacts/notification-function.zip"
+  source = data.archive_file.function.output_path
 }
 
 resource "google_cloudfunctions2_function" "notification" {

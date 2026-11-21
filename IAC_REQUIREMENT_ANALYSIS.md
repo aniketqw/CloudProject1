@@ -92,7 +92,7 @@ Food-delivery platform with 8 Python/Flask services, a Flink analytics job (Java
 | 1 | Convert JSON to HCL `.tf` | **Done** (Groups B, C, D in trace.md) |
 | 2 | Merge into one root module | **Done** (Group E); state bucket bootstrap stays separate |
 | 3 | Remove cluster-before-apply dependency | **Done** (Group E): helm provider built from the cluster; Argo root app via Helm chart |
-| 4 | Move artifact production into Terraform | Not started |
+| 4 | Move artifact production into Terraform | **Done** (Group G), not run against a real project; the Flink jar copy is one `local-exec` step |
 | 5 | Replace Python provisioning | Not started |
 | 6 | Add monitoring and other missing infra | Not started |
 | 7 | Secrets as variables | Not started |
