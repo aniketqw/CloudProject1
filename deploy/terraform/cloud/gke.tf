@@ -60,10 +60,14 @@ resource "google_container_node_pool" "apps" {
   location           = var.zone
   cluster            = google_container_cluster.gke.name
   initial_node_count = local.capacity.gke_nodes
+  node_count         = var.paused ? 0 : null # paused: no nodes, so no node charges
 
-  autoscaling {
-    min_node_count = local.capacity.gke_nodes
-    max_node_count = local.capacity.gke_max_nodes
+  dynamic "autoscaling" {
+    for_each = var.paused ? [] : [1]
+    content {
+      min_node_count = local.capacity.gke_nodes
+      max_node_count = local.capacity.gke_max_nodes
+    }
   }
 
   node_config {

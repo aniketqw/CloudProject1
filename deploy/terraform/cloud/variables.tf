@@ -20,7 +20,15 @@ variable "kafka_bootstrap" {
 }
 
 variable "public_host" {
-  type = string
+  type        = string
+  default     = ""
+  description = "Public web name. Empty means use <ip-with-dashes>.sslip.io, a free name that points at the reserved web address."
+}
+
+variable "paused" {
+  type        = bool
+  default     = false
+  description = "true stops the billable compute that Terraform can stop: GKE nodes go to zero and Cloud SQL stops. Dataproc cannot be stopped by Terraform."
 }
 
 variable "dns_zone" {

@@ -6,6 +6,9 @@ locals {
   }
   profiles = jsondecode(file("${path.module}/../../profiles.json"))
   capacity = local.profiles[var.compute_profile]
+
+  # A real, free HTTPS name when none is given: sslip.io answers with the IP written in the name.
+  public_host = var.public_host != "" ? var.public_host : "${replace(google_compute_global_address.web.address, ".", "-")}.sslip.io"
 }
 
 provider "google" {
