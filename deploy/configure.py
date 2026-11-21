@@ -59,12 +59,10 @@ def render(v,target="team",outputs=None):
     ignored=ROOT/".local-build/config"/target;ignored.mkdir(parents=True,exist_ok=True)
     cloud={k:v[k] for k in ("project_id","region","zone","prefix","kafka_bootstrap","public_host","dns_zone","admin_cidr","create_firestore","operator_user")}
     cloud["compute_profile"]=v.get("compute_profile","demo")
+    cloud.update(kafka_cluster_id=v["kafka_cluster_id"],kafka_rest_endpoint=v["kafka_rest_endpoint"],kafka_retention_days=selected(v)[1]["kafka_retention_days"],git_repository=v["git_repository"],git_revision=v["git_revision"])
     write(ignored/"cloud.tfvars.json",cloud)
     write(ignored/"state.tfvars.json",{k:v[k] for k in ("project_id","region","state_bucket")})
-    write(ignored/"kafka.tfvars.json",{"cluster_id":v["kafka_cluster_id"],"rest_endpoint":v["kafka_rest_endpoint"],"retention_days":selected(v)[1]["kafka_retention_days"]})
-    write(ignored/"gitops.tfvars.json",{"repository":v["git_repository"],"revision":v["git_revision"]})
-    for root in ("cloud","controller","gitops","kafka"):
-        (ignored/(root+"-backend.hcl")).write_text('bucket = "'+v["state_bucket"]+'"\nprefix = "food/'+root+'"\n',encoding="utf-8")
+    (ignored/"cloud-backend.hcl").write_text('bucket = "'+v["state_bucket"]+'"\nprefix = "food/cloud"\n',encoding="utf-8")
     artifact=ROOT/".local-build/artifacts/notification-function.zip";artifact.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(artifact,"w",zipfile.ZIP_DEFLATED) as archive:
         for name in ("main.py","requirements.txt"):archive.write(ROOT/"functions/notification_transport"/name,name)
