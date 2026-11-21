@@ -128,7 +128,7 @@ Purpose: before, a plain apply failed because the function ZIP, images and Flink
 | T-012 | MODIFIED | `deploy/terraform/cloud/.terraform.lock.hcl` | Regenerated for six providers on four platforms. | Lock file must list the new providers. | `git checkout -- deploy/terraform/cloud/.terraform.lock.hcl` | same |
 
 How it was verified: `terraform validate` and `terraform fmt -check` pass. A targeted local apply (no cloud contact) produced the right values: image name `asia-south1-docker.pkg.dev/<project>/<prefix>-app/app:<tag>`, jar name `restaurant-analytics-<tag>.jar`, source hashes, and a ZIP holding exactly `main.py` and `requirements.txt`. The docker build, push and jar upload themselves were **not** run (they need Docker, gcloud and a real project).
-| T-016 | MODIFIED | `deploy/terraform/cloud/artifacts.tf` | Both image builds now set `platform = "linux/amd64"`. | The deploying machine is an Apple-silicon (ARM) Mac; without this the images would be ARM and fail on GKE's Intel nodes. | remove the two `platform` lines | `logs/T-016-amd64-builds.log` |
+| T-018 | MODIFIED | `deploy/terraform/cloud/artifacts.tf` | Both image builds now set `platform = "linux/amd64"`. | The deploying machine is an Apple-silicon (ARM) Mac; without this the images would be ARM and fail on GKE's Intel nodes. | remove the two `platform` lines | `logs/T-018-amd64-builds.log` |
 
 ## Group H: Documentation of the system
 | ID | Action | Path | What | Relevance | Undo | Log |
@@ -181,6 +181,32 @@ Purpose: map every course requirement to the code and prepare what the live demo
 | T-017 | ADDED | `REQUIREMENTS_MAP.md` | Requirement-to-code map, architecture diagram, per-requirement demo runbook (A to H), storage table and known gaps. | The material for the instructor demos. | `rm REQUIREMENTS_MAP.md` | none |
 
 How it was verified: `terraform validate` and `terraform fmt -check` pass; the two edited test files pass. Filters, tiles, the Component Gateway and the commands in the runbook have not been run on a real project.
+
+## Group M: Make the first real plan possible without Kafka (decided with the owner)
+Purpose: the owner has no Confluent cluster yet and chose to continue without it. Kafka stays in the design; it is switched off with a variable.
+
+| ID | Action | Path | What | Relevance | Undo | Log |
+|---|---|---|---|---|---|---|
+| T-019 | MODIFIED | `deploy/terraform/cloud/variables.tf`, `kafka.tf` | New variable `enable_kafka` (default true). All Kafka connection variables now default to empty. With it false, no topics are created; with it true the topics resource refuses to run unless the cluster id, REST endpoint and admin key are set. | Lets the platform be planned and applied before a Confluent cluster exists. The services that need Kafka (order events, kitchen, delivery, notifications, analytics) will not work until it is turned on. | revert the two files | `logs/T-019-optional-kafka.log` |
+| T-019 | MODIFIED | `deploy/terraform/cloud/main.tf` | Docker provider gets `disable_docker_daemon_check = !var.build_artifacts`. | Found by the first real plan: the provider pinged Docker even with no images to build. Docker is now only needed when `build_artifacts` is true. | remove the setting | same |
+| T-020 | PLANNED | GCP (nothing created) | First real `terraform plan` in a scratch copy with local state, Kafka and image builds off, dummy password hash: **110 to add, 0 to change, 0 to destroy, no errors**. | Shows the whole platform resolves against the real project before anything is built. | nothing to undo | `logs/T-020-real-plan-summary.log` |
+
+## Group N: Argo CD gets its settings from Terraform, not from files in Git
+Purpose: the old flow rendered manifests with `deploy/configure.py` and needed a `git push` of project-specific files before Argo CD could sync, which would also have put the project ID into a public repo. Now Terraform creates the Argo CD Applications directly and passes the project's facts inline; Git holds only the charts and the image tag. A fresh environment is one `terraform apply` with nothing to render or push first.
+
+| ID | Action | Path | What | Relevance | Undo | Log |
+|---|---|---|---|---|---|---|
+| T-021 | MODIFIED | `deploy/terraform/modules/argocd/{main,variables}.tf` | The module now takes a generic `applications` map and creates them through the `argocd-apps` chart (the old single root-app inputs were removed). | Terraform, not a Git file, defines what Argo CD runs. | `git checkout HEAD -- deploy/terraform/modules/argocd` | `logs/T-021-argo-inline-values.log` |
+| T-021 | MODIFIED | `deploy/terraform/cloud/argocd.tf` | Defines the `food-platform` and `food` Applications. The `food` app gets inline Helm values built from Terraform's own resources (project, buckets, service accounts, secret names and versions, Cloud SQL connection, Kafka bootstrap, ingress IP) plus the demo-profile sizing that `configure.py` used to apply. | Replaces the render-and-push step. Nothing project-specific is committed. | `git checkout HEAD -- deploy/terraform/cloud/argocd.tf` | same |
+| T-021 | ADDED | `deploy/environments/team/image.yaml` | One line: `imageTag`. | The single source for the release: `terraform apply` builds and pushes this tag, Argo CD deploys it from Git. A new release is: change the tag, apply, `git push`. | `rm -r deploy/environments/team` | same |
+| T-021 | MODIFIED | `deploy/terraform/cloud/artifacts.tf`, `variables.tf`, `outputs.tf`, `terraform.tfvars.example` | The image tag is read from `image.yaml`; the `image_tag` variable was removed; an output checks the tag is not `latest`, `dev` or `local`. | One place to set the version. | revert the four files | same |
+| T-021 | ADDED, MODIFIED | `deploy/charts/food/templates/_helpers.tpl`, `analytics-job.yaml`, `initialize.yaml`, `workloads.yaml` | New helper `food.image` builds `imageRepository:imageTag` when both are set, otherwise uses the old full `image` value. The three templates use it. | Lets Terraform supply the registry path while Git supplies the tag. Old configurations still work. | `git checkout HEAD -- deploy/charts/food/templates` and `rm` the helper | same |
+| T-021 | MODIFIED | `deploy/local_cluster.py` | The local test-cluster config now passes an `applications` map to the module. | Follows the new module inputs. | `git checkout HEAD -- deploy/local_cluster.py` | same |
+| T-022 | MODIFIED | `deploy/terraform/cloud/main.tf` | The Confluent provider settings are all null when `enable_kafka` is false. | Found by the first real plan after T-021: partly set values made the provider reject the configuration. | revert the provider block | `logs/T-021-argo-inline-values.log` |
+
+How it was verified: `terraform validate` and `terraform fmt -check` pass for the cloud root, the module and the generated local config; the two edited test files pass. A **real `terraform plan`** against the project (scratch copy, local state, Kafka and image builds off, placeholder secrets) finished with exit 0: **110 to add, 0 to change, 0 to destroy**, nothing created. `helm` is not installed here, so the chart helper has **not** been rendered; install helm and run `helm template deploy/charts/food --set imageRepository=x --set imageTag=y` to check it.
+
+Left as it was: `deploy/configure.py` and `deploy/environments/team/food-values.json` rendering still exist only because the pause/resume tool reads that file. Argo CD no longer uses them.
 
 ---
 

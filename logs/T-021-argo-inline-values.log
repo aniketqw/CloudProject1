@@ -1,0 +1,40 @@
+## T-021 validation Sat Nov 21 13:59:49 IST 2026
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
+argocd.tf
+--- old/argocd.tf
++++ new/argocd.tf
+@@ -64,9 +64,9 @@
+     ingress = { ipName = google_compute_global_address.web.name }
+ 
+     secrets = {
+-      db     = google_secret_manager_secret.config["db-password"].secret_id
+-      kafka  = google_secret_manager_secret.config["kafka"].secret_id
+-      web    = google_secret_manager_secret.config["web-access"].secret_id
++      db    = google_secret_manager_secret.config["db-password"].secret_id
++      kafka = google_secret_manager_secret.config["kafka"].secret_id
++      web   = google_secret_manager_secret.config["web-access"].secret_id
+       versions = {
+         db    = google_secret_manager_secret_version.config["db-password"].version
+         kafka = google_secret_manager_secret_version.config["kafka"].version
+## helm template (image helper)
+helm not installed - chart render not checked
+## local harness config + module
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
+Success! The configuration is valid.
+
+cloud root valid + fmt clean
+## tests
+Ran 42 tests in 0.057s
+
+OK
+## full suite (baseline: 11 import errors)
+Ran 78 tests in 0.124s
+
+FAILED (errors=11)
+## real plan against the project (scratch copy, local state, Kafka off, image builds off, placeholder secrets)
+Plan: 110 to add, 0 to change, 0 to destroy.
+exit code 0, nothing created

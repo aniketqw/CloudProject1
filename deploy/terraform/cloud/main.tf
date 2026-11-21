@@ -33,11 +33,12 @@ resource "google_project_service" "apis" {
 }
 
 # ----------------------------------------------- providers for Kafka and GitOps
+# All four settings are given together or not at all; with enable_kafka = false the provider stays unconfigured.
 provider "confluent" {
-  kafka_id            = var.kafka_cluster_id
-  kafka_rest_endpoint = var.kafka_rest_endpoint
-  kafka_api_key       = var.kafka_admin_api_key
-  kafka_api_secret    = var.kafka_admin_api_secret
+  kafka_id            = var.enable_kafka ? var.kafka_cluster_id : null
+  kafka_rest_endpoint = var.enable_kafka ? var.kafka_rest_endpoint : null
+  kafka_api_key       = var.enable_kafka ? var.kafka_admin_api_key : null
+  kafka_api_secret    = var.enable_kafka ? var.kafka_admin_api_secret : null
 }
 
 data "google_client_config" "default" {}
@@ -54,6 +55,9 @@ provider "helm" {
 
 # Authenticates the docker provider to Artifact Registry with the same Google credentials.
 provider "docker" {
+  # Only talk to Docker when images are really being built.
+  disable_docker_daemon_check = !var.build_artifacts
+
   registry_auth {
     address  = "${var.region}-docker.pkg.dev"
     username = "oauth2accesstoken"

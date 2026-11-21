@@ -37,3 +37,13 @@ output "kafka_secret_version" {
 output "secret_versions" {
   value = { for name, secret in google_secret_manager_secret_version.config : name => secret.version }
 }
+
+output "image_tag" {
+  value       = local.image_tag
+  description = "Release tag read from deploy/environments/team/image.yaml."
+
+  precondition {
+    condition     = !contains(["latest", "dev", "local"], lower(local.image_tag))
+    error_message = "Use an immutable release image tag in deploy/environments/team/image.yaml."
+  }
+}

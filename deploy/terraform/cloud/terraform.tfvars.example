@@ -15,7 +15,6 @@ public_host     = "food.example.com"
 dns_zone        = "" # name of an existing Cloud DNS zone, or empty to create the A record yourself
 admin_cidr      = "203.0.113.10/32" # your public IP, allowed to reach the GKE API
 operator_user   = "operator"
-image_tag       = "v1"
 compute_profile = "demo"
 
 kafka_bootstrap     = "pkc-xxxxx.asia-south1.gcp.confluent.cloud:9092"
@@ -25,5 +24,7 @@ kafka_rest_endpoint = "https://pkc-xxxxx.asia-south1.gcp.confluent.cloud:443"
 git_repository = "https://github.com/OWNER/REPO.git"
 git_revision   = "iac-integration"
 
+# The release tag is not set here: edit deploy/environments/team/image.yaml (it is the single source for the
+# image build and the Argo CD deployment).
 # build_artifacts = false  # set when the images and jar were already published
 # alert_notification_channels = ["projects/your-project-id/notificationChannels/1234567890"]

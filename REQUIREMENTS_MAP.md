@@ -8,7 +8,7 @@ Placeholders: `<project>` is your project ID, `<prefix>` is the `prefix` variabl
 
 | Req | What it asks | Status | Where |
 |---|---|---|---|
-| a | All infrastructure from Infrastructure as Code | Mostly met | `deploy/terraform/cloud/` (one root), `modules/argocd/`, `state/` (one-time bucket) |
+| a | All infrastructure from Infrastructure as Code | Met in code; real plan clean, apply pending | `deploy/terraform/cloud/` (one root), `modules/argocd/`, `state/` (one-time bucket) |
 | b | One serverless function; REST, gRPC and a message queue all used | Met | `functions/notification_transport/`; `order_service/dependencies.py` (gRPC); `web_ui/client.py` (REST); Kafka and Pub/Sub |
 | c | Managed Kubernetes, two HPAs, k6 load test | Built, not yet proven live | `gke.tf`; `deploy/charts/food/templates/workloads.yaml`; `load/sustained.js` |
 | d | GitOps controller tracks Git; no `kubectl apply` for services | Met in design | `modules/argocd/`, `deploy/charts/`, `deploy/environments/` |
@@ -70,7 +70,8 @@ Reading it: REST carries browser and service-to-service calls; gRPC is used betw
   ```
 - **Needs on the machine:** Terraform 1.6+, Docker, gcloud signed in (`gcloud auth application-default login`), and the secrets as `TF_VAR_*` environment variables (see `deploy/terraform/cloud/terraform.tfvars.example`).
 - **Every person runs their own stack:** each person sets their own `project_id` and `prefix` in their `terraform.tfvars`.
-- **Honest limits:** the Flink jar upload is one `local-exec` step inside apply. Rendering `food-values.json` for Argo CD still uses `deploy/configure.py` and a Git push. Schema creation, the Flink job submit and pause/resume are kept as application or operations steps (see `trace.md`, Group J).
+- **Argo CD needs nothing rendered or pushed first:** Terraform creates the Argo CD Applications and passes the project's settings inline; the repo holds only charts and `deploy/environments/team/image.yaml`.
+- **Honest limits:** the Flink jar upload is one `local-exec` step inside apply. Schema creation, the Flink job submit and pause/resume are kept as application or operations steps (see `trace.md`, Group J). The Confluent Kafka cluster and keys are created outside Terraform; with `enable_kafka = false` the platform can be applied without them.
 
 ### B. Serverless, REST, gRPC and queues (req b)
 - **Serverless:** the Cloud Function `<prefix>-notification-transport` (`functions/notification_transport/main.py`). Notification Service publishes to Pub/Sub; Eventarc triggers the function; it writes a receipt object to Cloud Storage; Notification Service marks the message delivered only after seeing that receipt. Only this transport is serverless, not the whole Notification Service.
@@ -96,7 +97,7 @@ Reading it: REST carries browser and service-to-service calls; gRPC is used betw
   kubectl -n argocd port-forward svc/argocd-server 8080:443
   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
   ```
-- **Demo of an update:** change a value in Git (for example replica counts or an environment setting), `git push`, and watch the Application go OutOfSync then Synced in the dashboard. For a code change, `terraform apply -var image_tag=<new>` builds and pushes the new image, then commit the new tag in the values file and push.
+- **Demo of an update:** change a value in Git (for example replica counts or an environment setting), `git push`, and watch the Application go OutOfSync then Synced in the dashboard. For a code change, set a new tag in `deploy/environments/team/image.yaml`, run `terraform apply` (it builds and pushes that tag), then `git push`; Argo CD rolls the new image out.
 - **Honest limits:** there is no CI pipeline, so the image build is triggered by `terraform apply`, not by `git push`. `deploy/lifecycle_cloud.py` uses `kubectl scale/patch` for pause and resume; do not present that as deployment.
 
 ### E. Flink stream processing (req e)
@@ -141,6 +142,5 @@ Reading it: REST carries browser and service-to-service calls; gRPC is used betw
 ## Known gaps before the demo
 - No real run yet. Alert filters, dashboard tiles, the Component Gateway and HPA scale-out are validated for syntax only.
 - No CI pipeline: new images are built by `terraform apply`.
-- `deploy/environments/team/` manifests are rendered by `deploy/configure.py`; a Terraform-based rendering is proposed but not done.
 - Argo CD, Grafana and the scheduler API are reached by `kubectl port-forward`; there is no public ingress for them.
 - The Confluent Kafka cluster and its API keys, and the DNS zone, are created outside Terraform.

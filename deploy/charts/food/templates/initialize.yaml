@@ -26,7 +26,7 @@ spec:
       {{- end }}
       containers:
         - name: initialize
-          image: {{ .Values.image | quote }}
+          image: {{ include "food.image" . | quote }}
           args: ["python","-m","deploy.initialize"]
           envFrom: [{configMapRef: {name: food-config}}, {secretRef: {name: food-db}}]
           resources: {requests: {cpu: 100m, memory: 192Mi}, limits: {cpu: "1", memory: 512Mi}}
