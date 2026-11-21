@@ -10,8 +10,8 @@ spec:
     - from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}}]
   egress:
     - to: [{podSelector: {}}]
-    - to: [{namespaceSelector: {}}]
-      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    # DNS goes to the node-local cache (169.254.20.25), which is not a pod, so it cannot be matched by a pod selector.
+    - ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
     - ports: [{port: 443}, {port: 9092}, {port: 3307}, {port: 80}, {port: 988}]
 ---
 apiVersion: networking.k8s.io/v1
