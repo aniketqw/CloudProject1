@@ -145,10 +145,33 @@ Purpose: monitoring for the managed GCP services is now Terraform, and secrets n
 
 Notes: Terraform state still contains secret values (the generated database password and the Kafka keys stored in Secret Manager), so the state bucket must stay private; it has public access prevention and versioning. The alert filters were checked for syntax by `terraform validate` only; they were not run against a real project.
 
+
+## Group K: Cloud-side actions (not repo changes)
+A Google Cloud project was created and billing was linked outside this repository, on the owner's instruction, to be the target for the Terraform apply. The identifiers (project ID, billing account, organization) are deliberately **not recorded in this repository**; they are kept in a local, untracked log. To stop charges later, unlink billing or delete the project in the Google Cloud console or with `gcloud`.
+
+## Group J: Decisions on the remaining Python provisioning (analysis change #5)
+Purpose: three pieces of Python do not map cleanly onto Terraform resources. They were checked against the Google provider (7.25.0) and decided with the owner on 2026-11-21.
+
+Facts checked: `google_dataproc_job` has no Flink job type (only Hadoop, Hive, Pig, Presto, PySpark, Spark, Spark SQL); `google_dataproc_cluster` has no stopped state; `google_firestore_document` and the Cloud SQL `activation_policy` attribute do exist.
+
+| Item | Decision | Reason |
+|---|---|---|
+| Starter Firestore restaurant (from `deploy/initialize.py`) | **Moved to Terraform** (T-015 below) | Cloud data that Terraform can declare. |
+| MySQL table creation (`deploy/initialize.py`, run by an Argo CD Job) | **Kept**, documented as an application migration | SQL tables are application data, not cloud infrastructure; the Job is declared in Git and runs in-cluster. |
+| Flink job submit (`deploy/dataproc_submit.py`, Argo CD hook Job) | **Kept**, documented as application deployment | No Terraform resource exists for it, and the script's savepoint resume would be lost by replacing it. |
+| Pause and resume (`deploy/lifecycle*.py`, `flink_control.py`) | **Kept** as a day-2 operations tool, not provisioning | Terraform cannot stop Dataproc or take a Flink savepoint; splitting control would risk drift. Terraform's `ignore_changes` on node count and SQL activation policy already lets it coexist. |
+
+| ID | Action | Path | What | Relevance | Undo | Log |
+|---|---|---|---|---|---|---|
+| T-015 | ADDED | `deploy/terraform/cloud/database.tf` (new resource `google_firestore_document.starter_restaurant`) | The starter restaurant document (id `1`, "Campus Kitchen", one menu item) as typed Firestore fields. Timestamps are set once with `plantimestamp()`; changes to `fields` are ignored so menu edits made through the app are never reverted. | One less thing created by Python; the cloud data is now declared. | delete the resource block | `logs/T-015-seed-and-provisioning-decisions.log` |
+| T-015 | MODIFIED | `deploy/initialize.py` | Removed the Firestore seed and its import; it now only creates the SQL tables. | Avoids creating the same document twice. | `git checkout main -- deploy/initialize.py` | same |
+
+Note: `local/seed.py` (the separate local-development seeding) was not changed.
+
 ---
 
 ## Not done yet (from the analysis, for the next groups)
-Replace Python provisioning (Flink submit, schema init, pause/resume), which needs a design decision; update the original handoff doc (not edited because it is an original document); a real plan and apply against a GCP project. Each will become a new group above.
+Real plan and apply against a GCP project; update the original handoff doc (not edited because it is an original document); (Python provisioning was decided in Group J). Each will become a new group above.
 
 ## Revision guide
 To be written after the work is complete. It will follow these groups in order, and for each one explain what was done, why, how to repeat it on another project, and how it was verified.

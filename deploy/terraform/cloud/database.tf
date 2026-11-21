@@ -76,3 +76,42 @@ resource "google_firestore_index" "analytics" {
 
   depends_on = [google_firestore_database.default]
 }
+
+# Starter restaurant the services expect to exist. Created once by Terraform; later edits made
+# through the app (menus, opening status) are left alone because changes to `fields` are ignored.
+resource "google_firestore_document" "starter_restaurant" {
+  collection  = "restaurants"
+  document_id = "1"
+
+  fields = jsonencode({
+    name                     = { stringValue = "Campus Kitchen" }
+    description              = { stringValue = "Synthetic assignment menu" }
+    currency                 = { stringValue = "INR" }
+    is_open                  = { booleanValue = true }
+    estimated_prep_time_mins = { integerValue = "15" }
+    version                  = { integerValue = "1" }
+    menu = {
+      arrayValue = {
+        values = [{
+          mapValue = {
+            fields = {
+              item_id     = { stringValue = "veg-meal" }
+              name        = { stringValue = "Veg meal" }
+              price_minor = { integerValue = "12900" }
+              available   = { booleanValue = true }
+              description = { stringValue = "" }
+            }
+          }
+        }]
+      }
+    }
+    created_at = { timestampValue = plantimestamp() }
+    updated_at = { timestampValue = plantimestamp() }
+  })
+
+  depends_on = [google_firestore_database.default]
+
+  lifecycle {
+    ignore_changes = [fields]
+  }
+}
