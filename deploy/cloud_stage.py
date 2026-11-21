@@ -58,8 +58,6 @@ def main(argv=None):
         backend = inputs/(args.stage+"-backend.hcl") if args.stage != "state" else None
         run(command+["init", "-input=false"]+(["-backend-config="+str(backend)] if backend else []))
         variables = inputs/(args.stage+".tfvars.json")
-        if args.stage == "cloud" and not (folder/"secrets.auto.tfvars.json").exists():
-            raise LifecycleError("Create the ignored private input with deploy.secret_inputs before planning.")
         plan = inputs/(args.stage+".tfplan")
         receipt_path = inputs/(args.stage+"-plan-review.json")
         current = plan_inputs(config_path, folder, variables, backend)

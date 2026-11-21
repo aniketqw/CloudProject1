@@ -120,3 +120,10 @@ variable "build_artifacts" {
   default     = true
   description = "Build and push the images and Flink jar during apply (needs Docker and gcloud on this machine). Set false when they were published already."
 }
+
+# -- Monitoring
+variable "alert_notification_channels" {
+  type        = list(string)
+  default     = []
+  description = "Existing Cloud Monitoring notification channel IDs to notify. Empty keeps alerts visible in the console only."
+}
