@@ -76,5 +76,5 @@ def main():
         path=render(v,"example" if args.example else "team",json.loads(Path(args.cloud_outputs).read_text()) if args.cloud_outputs else None)
     except (OSError,ValueError,KeyError):raise SystemExit("Configuration rejected. Check the example field names, non-secret values and README; no values were printed.")
     print("Rendered non-secret chart/GitOps inputs and ignored Terraform inputs: "+str(path))
-    print("No infrastructure was provisioned. Secret values must use deploy.secret_inputs.")
+    print("No infrastructure was provisioned. Secret values are passed as TF_VAR_* environment variables (see deploy/terraform/cloud/terraform.tfvars.example).")
 if __name__=="__main__":main()

@@ -132,10 +132,23 @@ How it was verified: `terraform validate` and `terraform fmt -check` pass. A tar
 |---|---|---|---|---|---|---|
 | T-013 | ADDED | `SERVICE_MAP.md` | Maps each of the eight services to its files, tests, local scripts and infrastructure; lists the non-service parts; lists redundant files (identical dashboards and k6 script, generated protobuf files, an unused Dockerfile, two shims); describes the Terraform entry point and options. | Orientation for the refactor and the revision guide. | `rm SERVICE_MAP.md` | none |
 
+## Group I: Monitoring and secrets as variables (analysis changes #6 and #7)
+Purpose: monitoring for the managed GCP services is now Terraform, and secrets no longer need an interactive Python script.
+
+| ID | Action | Path | What | Relevance | Undo | Log |
+|---|---|---|---|---|---|---|
+| T-014 | ADDED | `deploy/terraform/cloud/monitoring.tf` | Three alert policies (Cloud SQL CPU above 80%, GKE node CPU above 85%, notification function 5xx errors) and one Cloud Monitoring dashboard. | Closes the "no `google_monitoring_*` resource" gap. The in-cluster Prometheus and Grafana stack still comes from Argo CD. | `rm deploy/terraform/cloud/monitoring.tf` | `logs/T-014-monitoring-secrets.log` |
+| T-014 | MODIFIED | `deploy/terraform/cloud/variables.tf` | New optional variable `alert_notification_channels` (default empty). | Lets alerts notify an existing channel without putting an email in the code. | revert the added block | same |
+| T-014 | ADDED | `deploy/terraform/cloud/terraform.tfvars.example` | Template of every input, with the secrets documented as `TF_VAR_*` environment variables and a one-line command to make the operator password hash. | Replaces the prompts: the whole deployment is configured by one tfvars file plus environment variables. | `rm` the file | same |
+| T-014 | DELETED | `deploy/secret_inputs.py` | The interactive script that wrote a secrets file. | Secrets now come from `TF_VAR_*`, so no Python is involved. | `git checkout main -- deploy/secret_inputs.py` | same |
+| T-014 | MODIFIED | `deploy/cloud_stage.py`, `deploy/configure.py` | Removed the check that required the secrets file, and the message pointing to the deleted script. | Terraform itself fails if a required variable is missing. | `git checkout main -- <file>` (then re-apply Groups D, F edits) | same |
+
+Notes: Terraform state still contains secret values (the generated database password and the Kafka keys stored in Secret Manager), so the state bucket must stay private; it has public access prevention and versioning. The alert filters were checked for syntax by `terraform validate` only; they were not run against a real project.
+
 ---
 
 ## Not done yet (from the analysis, for the next groups)
-Replace Python provisioning (Flink submit, schema init, pause/resume); add monitoring resources; secrets as variables; update the handoff doc. Each will become a new group above.
+Replace Python provisioning (Flink submit, schema init, pause/resume), which needs a design decision; update the original handoff doc (not edited because it is an original document); a real plan and apply against a GCP project. Each will become a new group above.
 
 ## Revision guide
 To be written after the work is complete. It will follow these groups in order, and for each one explain what was done, why, how to repeat it on another project, and how it was verified.
