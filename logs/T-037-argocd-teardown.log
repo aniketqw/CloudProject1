@@ -1,0 +1,6 @@
+## destroy stopped at argocd applications release
+symptom: uninstallation completed with 1 error(s): context deadline exceeded (52 resources destroyed before it)
+cause: Application food had a sync operation in flight waiting for a ManagedCertificate that never becomes healthy (placeholder host); Argo cannot delete an application while an operation runs
+fix applied in cluster: patch application food with operation null; application then deleted
+next: destroy re-run
+open: make teardown robust in code (e.g. do not rely on cascade finalizer, or ensure no stuck operation)

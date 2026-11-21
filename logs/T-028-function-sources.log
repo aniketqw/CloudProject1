@@ -1,0 +1,3 @@
+## function source bucket access (original-code defect)
+error: gen2 build denied on gcf-v2-sources-<project number>-<region>; build account needs Storage Object Viewer
+fix: conditional project-level objectViewer for the build account, scoped to that bucket name prefix; function depends_on it

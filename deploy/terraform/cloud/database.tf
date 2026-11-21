@@ -57,7 +57,7 @@ resource "google_firestore_database" "default" {
   name            = "(default)"
   location_id     = var.region
   type            = "FIRESTORE_NATIVE"
-  deletion_policy = "ABANDON"
+  deletion_policy = var.firestore_delete_on_destroy ? "DELETE" : "ABANDON"
   depends_on      = [google_project_service.apis]
 }
 

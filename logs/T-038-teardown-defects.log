@@ -1,0 +1,6 @@
+## teardown defects and a procedure mistake
+run1: stopped at 52 destroyed (argo applications hung, T-037)
+run2: 25 left; buckets need force_destroy; network connection still in use (clears after Cloud SQL is gone)
+run3: step 1 was a plain apply and recreated 83 resources; destroy then removed 49 and hung on argo food-platform
+run4: argo applications cleared first, destroy only
+lesson: after a partial destroy never run apply to flip flags; destroy-only

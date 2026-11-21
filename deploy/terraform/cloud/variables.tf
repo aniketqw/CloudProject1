@@ -143,3 +143,9 @@ variable "force_destroy_buckets" {
   default     = false
   description = "Lets terraform destroy delete the receipts, checkpoints and artifacts buckets even when they hold files. Leave false normally; set true (and apply once) before tearing down."
 }
+
+variable "firestore_delete_on_destroy" {
+  type        = bool
+  default     = false
+  description = "By default terraform destroy leaves the Firestore database in place (ABANDON), which makes the next apply fail with 'already exists'. Set true (and apply once) before tearing down."
+}
