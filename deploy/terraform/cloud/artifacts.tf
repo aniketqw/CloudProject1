@@ -1,8 +1,8 @@
 # Everything the deployment needs that is built from this repository, produced by apply itself.
 locals {
   repo_root = "${path.module}/../../.."
-  app_image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.prefix}-app/app:${var.image_tag}"
-  jar_name  = "restaurant-analytics-${var.image_tag}.jar"
+  app_image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.prefix}-app/app:${local.image_tag}"
+  jar_name  = "restaurant-analytics-${local.image_tag}.jar"
 
   # Rebuild only when a source file changes (build outputs, state and git data are skipped).
   source_hash = sha1(join(",", [
@@ -40,6 +40,7 @@ resource "docker_image" "app" {
   build {
     context    = abspath(local.repo_root)
     dockerfile = "Dockerfile.local"
+    platform   = "linux/amd64" # GKE nodes are Intel; an ARM image built on an Apple-silicon Mac would not start
   }
 
   triggers = {
@@ -58,10 +59,11 @@ resource "docker_registry_image" "app" {
 # --- Flink job jar: built inside the analytics image, then copied out and uploaded
 resource "docker_image" "analytics" {
   count = var.build_artifacts ? 1 : 0
-  name  = "food-restaurant-analytics:${var.image_tag}"
+  name  = "food-restaurant-analytics:${local.image_tag}"
 
   build {
-    context = abspath("${local.repo_root}/restaurant_service/analytics")
+    context  = abspath("${local.repo_root}/restaurant_service/analytics")
+    platform = "linux/amd64"
   }
 
   triggers = {
@@ -73,7 +75,7 @@ resource "docker_image" "analytics" {
 # inside apply, only when the analytics source changes, and needs Docker and gcloud.
 resource "terraform_data" "flink_jar" {
   count            = var.build_artifacts ? 1 : 0
-  triggers_replace = [local.analytics_hash, var.image_tag, google_storage_bucket.artifacts.name]
+  triggers_replace = [local.analytics_hash, local.image_tag, google_storage_bucket.artifacts.name]
 
   provisioner "local-exec" {
     interpreter = ["bash", "-ec"]

@@ -1,4 +1,4 @@
-# Installs Argo CD and the root Application that points it at the Git repository.
+# Installs Argo CD and the Applications that point it at the Git repository.
 # Both are Helm releases so the whole thing works on a brand-new cluster in one
 # apply: a kubernetes_manifest resource would need the cluster to exist at plan time.
 
@@ -39,8 +39,8 @@ resource "helm_release" "argocd" {
   })]
 }
 
-resource "helm_release" "root_app" {
-  name       = "argocd-root-app"
+resource "helm_release" "applications" {
+  name       = "argocd-applications"
   namespace  = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argocd-apps"
@@ -50,25 +50,11 @@ resource "helm_release" "root_app" {
 
   values = [jsonencode({
     applications = {
-      (var.app_name) = {
+      for name, app in var.applications : name => merge({
         namespace  = "argocd"
         finalizers = ["resources-finalizer.argocd.argoproj.io"]
         project    = "default"
-        source = {
-          repoURL        = var.repository
-          targetRevision = var.revision
-          path           = var.source_path
-          directory      = var.directory_include == null ? null : { include = var.directory_include }
-        }
-        destination = {
-          server    = "https://kubernetes.default.svc"
-          namespace = var.destination_namespace
-        }
-        syncPolicy = {
-          automated   = { prune = true, selfHeal = true }
-          syncOptions = ["CreateNamespace=true"]
-        }
-      }
+      }, app)
     }
   })]
 

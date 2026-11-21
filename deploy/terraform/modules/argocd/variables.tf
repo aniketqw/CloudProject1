@@ -1,33 +1,6 @@
-variable "repository" {
-  type        = string
-  description = "Git repository Argo CD watches."
-}
-
-variable "revision" {
-  type        = string
-  description = "Git revision (branch, tag or commit) Argo CD syncs."
-}
-
-variable "source_path" {
-  type        = string
-  default     = "deploy/environments/team"
-  description = "Folder inside the repository that holds the child Applications."
-}
-
-variable "directory_include" {
-  type        = string
-  default     = "applications.yaml"
-  description = "File pattern Argo CD reads inside source_path. Null reads the whole folder."
-}
-
-variable "app_name" {
-  type    = string
-  default = "food-root"
-}
-
-variable "destination_namespace" {
-  type    = string
-  default = "argocd"
+variable "applications" {
+  type        = any
+  description = "Argo CD Applications to create, keyed by name (argocd-apps chart format: source, destination, syncPolicy, optional additionalAnnotations)."
 }
 
 variable "argocd_cm_extra" {

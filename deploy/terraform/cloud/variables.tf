@@ -15,7 +15,8 @@ variable "prefix" {
 }
 
 variable "kafka_bootstrap" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "public_host" {
@@ -33,11 +34,13 @@ variable "admin_cidr" {
 
 variable "kafka_api_key" {
   type      = string
+  default   = ""
   sensitive = true
 }
 
 variable "kafka_api_secret" {
   type      = string
+  default   = ""
   sensitive = true
 }
 
@@ -66,22 +69,32 @@ variable "compute_profile" {
 }
 
 # -- Kafka topics (formerly the separate kafka root)
+variable "enable_kafka" {
+  type        = bool
+  default     = true
+  description = "Create the Kafka topics. Set false until a Confluent cluster exists; the services that need Kafka will not work without it."
+}
+
 variable "kafka_cluster_id" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "kafka_rest_endpoint" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "kafka_admin_api_key" {
   type        = string
+  default     = ""
   sensitive   = true
   description = "Confluent topic-administrator key. Different from kafka_api_key, which the applications use."
 }
 
 variable "kafka_admin_api_secret" {
   type      = string
+  default   = ""
   sensitive = true
 }
 
@@ -105,16 +118,6 @@ variable "git_revision" {
 }
 
 # -- Build artifacts
-variable "image_tag" {
-  type        = string
-  description = "Immutable release tag for the application image and the Flink jar."
-
-  validation {
-    condition     = !contains(["latest", "dev", "local"], lower(var.image_tag))
-    error_message = "Use an immutable release image tag."
-  }
-}
-
 variable "build_artifacts" {
   type        = bool
   default     = true

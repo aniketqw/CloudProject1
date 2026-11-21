@@ -97,14 +97,19 @@ provider "helm" {{
 
 # Same module the cloud root uses, pointed at the local fixture repository.
 module "argocd" {{
-  source                = "{module}"
-  repository            = var.repository
-  revision              = var.revision
-  source_path           = "chart"
-  directory_include     = null
-  app_name              = "food-local"
-  destination_namespace = "food"
-  argocd_cm_extra       = {{ "resource.exclusions" = "" }}
+  source          = "{module}"
+  argocd_cm_extra = {{ "resource.exclusions" = "" }}
+
+  applications = {{
+    "food-local" = {{
+      source      = {{ repoURL = var.repository, targetRevision = var.revision, path = "chart" }}
+      destination = {{ server = "https://kubernetes.default.svc", namespace = "food" }}
+      syncPolicy = {{
+        automated   = {{ prune = true, selfHeal = true }}
+        syncOptions = ["CreateNamespace=true"]
+      }}
+    }}
+  }}
 }}
 ''')
     (target/"terraform.tfvars.json").write_text(json.dumps({"kubeconfig_path":str(ROOT/".local-build/kind/kubeconfig"),"kube_context":"kind-food-assignment","repository":"git://food-local-gitops/gitops-fixture","revision":"fixture"}))

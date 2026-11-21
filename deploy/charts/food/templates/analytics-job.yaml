@@ -16,7 +16,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: submit
-          image: {{ .Values.image | quote }}
+          image: {{ include "food.image" . | quote }}
           args: ["python","-m","deploy.dataproc_submit"]
           envFrom: [{configMapRef: {name: food-config}}]
           env:
