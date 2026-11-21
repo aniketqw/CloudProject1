@@ -39,6 +39,7 @@ spec:
           readinessProbe:
             exec: {command: ["sh","-ec","zkServer.sh status >/dev/null"]}
             periodSeconds: 10
+            timeoutSeconds: 10 # zkServer.sh starts a JVM; the 1 second default always timed out
           volumeMounts: [{name: data, mountPath: /data}, {name: data, mountPath: /datalog, subPath: datalog}]
       affinity:
         podAntiAffinity:
