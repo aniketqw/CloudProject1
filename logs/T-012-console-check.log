@@ -1,0 +1,14 @@
+message.
+
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+dbg = {
+  "ana" = "b209813a95956df4d52427a4d3d74e3346ff2ed3"
+  "app" = "asia-south1-docker.pkg.dev/demo-project-1/food-app/app:v1"
+  "jar" = "restaurant-analytics-v1.jar"
+  "nfiles" = 225
+  "src" = "103e2236ef561b5831cb03c8cbc9797c36646811"
+  "zip" = "f4af69eedaa2b763f1c9dc1e6053841ed1d059fdbc42bf35d82e286b3b97ccc8"
+}

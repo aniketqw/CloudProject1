@@ -17,6 +17,14 @@ terraform {
       source  = "hashicorp/helm"
       version = "3.1.1"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "2.7.1"
+    }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "3.6.2"
+    }
   }
   backend "gcs" {}
 }

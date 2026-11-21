@@ -115,10 +115,27 @@ Test result: the two edited test files pass (42 tests). The full suite shows the
 
 Known gap: `CLOUD_DEPLOYMENT_HANDOFF.md` is an original document and was **not** edited. It still describes the old five-stage commands (`cloud_stage kafka`, `controller`, `gitops`, `secret_inputs kafka`). The new instructions will go in the revision guide.
 
+## Group G: Builds happen inside `terraform apply` (analysis change #4)
+Purpose: before, a plain apply failed because the function ZIP, images and Flink jar had to be produced first by Python, docker and gcloud scripts. Now apply produces them.
+
+| ID | Action | Path | What | Relevance | Undo | Log |
+|---|---|---|---|---|---|---|
+| T-012 | ADDED | `deploy/terraform/cloud/artifacts.tf` | (1) `archive_file` zips `functions/notification_transport` (`main.py` and `requirements.txt` only). (2) `docker_image` and `docker_registry_image` build `Dockerfile.local` and push it to Artifact Registry, rebuilt when a source file changes. (3) The analytics image is built the same way, and one `terraform_data` step with `local-exec` copies the jar out of it and uploads it to the artifacts bucket. | A plain apply no longer needs the function ZIP, an image push or a jar upload done beforehand. The jar copy is the single scripted step, because Terraform cannot copy a file out of an image; it runs inside apply and needs Docker and gcloud. | delete the file and revert the edits below | `logs/T-012-artifacts.log`, `logs/T-012-console-check.log` |
+| T-012 | MODIFIED | `deploy/terraform/cloud/messaging.tf` | The function object name and source now come from `data.archive_file.function` instead of a pre-built file path. | Removes the dependency on `.local-build/` existing. | `git checkout main -- deploy/terraform/cloud/messaging.tf` (then re-apply Group E edits) or revert the two lines | same |
+| T-012 | MODIFIED | `deploy/terraform/cloud/variables.tf`, `versions.tf`, `main.tf` | New variables `image_tag` and `build_artifacts` (set false if images were already published); new providers `archive` 2.7.1 and `docker` 3.6.2; docker provider authenticates to Artifact Registry with the same Google token. | Needed by the build resources. | revert the added blocks | same |
+| T-012 | MODIFIED | `deploy/terraform/cloud/.terraform.lock.hcl` | Regenerated for six providers on four platforms. | Lock file must list the new providers. | `git checkout -- deploy/terraform/cloud/.terraform.lock.hcl` | same |
+
+How it was verified: `terraform validate` and `terraform fmt -check` pass. A targeted local apply (no cloud contact) produced the right values: image name `asia-south1-docker.pkg.dev/<project>/<prefix>-app/app:<tag>`, jar name `restaurant-analytics-<tag>.jar`, source hashes, and a ZIP holding exactly `main.py` and `requirements.txt`. The docker build, push and jar upload themselves were **not** run (they need Docker, gcloud and a real project).
+
+## Group H: Documentation of the system
+| ID | Action | Path | What | Relevance | Undo | Log |
+|---|---|---|---|---|---|---|
+| T-013 | ADDED | `SERVICE_MAP.md` | Maps each of the eight services to its files, tests, local scripts and infrastructure; lists the non-service parts; lists redundant files (identical dashboards and k6 script, generated protobuf files, an unused Dockerfile, two shims); describes the Terraform entry point and options. | Orientation for the refactor and the revision guide. | `rm SERVICE_MAP.md` | none |
+
 ---
 
 ## Not done yet (from the analysis, for the next groups)
-Move artifact building (function ZIP, images, Flink jar) into Terraform; replace Python provisioning (Flink submit, schema init, pause/resume); add monitoring resources; secrets as variables; update the handoff doc. Each will become a new group above.
+Replace Python provisioning (Flink submit, schema init, pause/resume); add monitoring resources; secrets as variables; update the handoff doc. Each will become a new group above.
 
 ## Revision guide
 To be written after the work is complete. It will follow these groups in order, and for each one explain what was done, why, how to repeat it on another project, and how it was verified.

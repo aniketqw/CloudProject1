@@ -103,3 +103,20 @@ variable "git_repository" {
 variable "git_revision" {
   type = string
 }
+
+# -- Build artifacts
+variable "image_tag" {
+  type        = string
+  description = "Immutable release tag for the application image and the Flink jar."
+
+  validation {
+    condition     = !contains(["latest", "dev", "local"], lower(var.image_tag))
+    error_message = "Use an immutable release image tag."
+  }
+}
+
+variable "build_artifacts" {
+  type        = bool
+  default     = true
+  description = "Build and push the images and Flink jar during apply (needs Docker and gcloud on this machine). Set false when they were published already."
+}
