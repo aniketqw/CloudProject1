@@ -57,7 +57,7 @@ locals {
         ANALYTICS_CHECKPOINT_URI = "gs://${google_storage_bucket.checkpoints.name}/flink"
         ANALYTICS_JAR_URI        = "gs://${google_storage_bucket.artifacts.name}/${local.jar_name}"
         ANALYTICS_CONTROL_URI    = "gs://${google_storage_bucket.checkpoints.name}/lifecycle/analytics.json"
-        ANALYTICS_RELEASE        = local.image_tag
+        ANALYTICS_RELEASE        = "${local.image_tag}-${random_id.analytics_run.hex}"
       }
     }
 
