@@ -14,7 +14,7 @@ resource "google_sql_database_instance" "database" {
     availability_type = "ZONAL"
     disk_size         = 10
     disk_autoresize   = true
-    activation_policy = "ALWAYS"
+    activation_policy = var.paused ? "NEVER" : "ALWAYS"
     edition           = "ENTERPRISE"
 
     backup_configuration {
@@ -34,10 +34,6 @@ resource "google_sql_database_instance" "database" {
   }
 
   depends_on = [google_service_networking_connection.private]
-
-  lifecycle {
-    ignore_changes = [settings[0].activation_policy]
-  }
 }
 
 resource "google_sql_database" "food" {

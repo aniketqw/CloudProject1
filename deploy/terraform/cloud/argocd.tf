@@ -27,8 +27,8 @@ locals {
     clusterName        = google_container_cluster.gke.name
     clusterLocation    = var.zone
     imageRepository    = "${var.region}-docker.pkg.dev/${var.project_id}/${var.prefix}-app/app"
-    host               = var.public_host
-    publicOrigin       = "https://${var.public_host}"
+    host               = local.public_host
+    publicOrigin       = "https://${local.public_host}"
     cloudSqlConnection = google_sql_database_instance.database.connection_name
     computeProfile     = var.compute_profile
     resources          = local.capacity.resources
@@ -62,7 +62,7 @@ locals {
     }
 
     # A placeholder (.invalid) host can never get a Google-managed certificate, and the sync would wait for it forever.
-    ingress = { enabled = !endswith(var.public_host, ".invalid"), ipName = google_compute_global_address.web.name }
+    ingress = { enabled = !endswith(local.public_host, ".invalid"), ipName = google_compute_global_address.web.name }
 
     secrets = {
       db    = google_secret_manager_secret.config["db-password"].secret_id

@@ -63,7 +63,7 @@ resource "google_service_networking_connection" "private" {
 resource "google_dns_record_set" "web" {
   count        = var.dns_zone == "" ? 0 : 1
   managed_zone = var.dns_zone
-  name         = "${var.public_host}."
+  name         = "${local.public_host}."
   type         = "A"
   ttl          = 300
   rrdatas      = [google_compute_global_address.web.address]
