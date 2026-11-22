@@ -75,11 +75,13 @@ locals {
       kafka = google_secret_manager_secret.config["kafka"].secret_id
       web   = google_secret_manager_secret.config["web-access"].secret_id
       zk    = google_secret_manager_secret.config["zk-auth"].secret_id
+      grpc  = google_secret_manager_secret.config["grpc-tls"].secret_id
       versions = {
         db    = google_secret_manager_secret_version.config["db-password"].version
         kafka = google_secret_manager_secret_version.config["kafka"].version
         web   = google_secret_manager_secret_version.config["web-access"].version
         zk    = google_secret_manager_secret_version.config["zk-auth"].version
+        grpc  = google_secret_manager_secret_version.config["grpc-tls"].version
       }
     }
 
@@ -96,8 +98,30 @@ locals {
   }
 }
 
+# Admin password for Argo CD, generated here instead of Argo CD's initial secret (which stays in the cluster until someone
+# deletes it). The plain text is kept in Secret Manager (`<prefix>-argocd-admin`); only the bcrypt hash reaches the cluster.
+# bcrypt() adds a new random salt on every evaluation, so the hash is stored once and never recomputed.
+resource "random_password" "argocd_admin" {
+  length  = 24
+  special = false
+}
+
+resource "terraform_data" "argocd_admin" {
+  input = {
+    hash  = bcrypt(random_password.argocd_admin.result)
+    mtime = timestamp()
+  }
+
+  lifecycle {
+    ignore_changes = [input]
+  }
+}
+
 module "argocd" {
   source = "../modules/argocd"
+
+  admin_password_bcrypt = terraform_data.argocd_admin.output.hash
+  admin_password_mtime  = terraform_data.argocd_admin.output.mtime
 
   # A Google-managed certificate stays Provisioning for up to an hour. Argo CD would wait for it before running the PostSync
   # Flink launch, so it is reported Healthy and the real state is shown in the message.

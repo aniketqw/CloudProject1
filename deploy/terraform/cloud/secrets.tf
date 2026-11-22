@@ -1,5 +1,5 @@
 resource "google_secret_manager_secret" "config" {
-  for_each  = toset(["db-password", "kafka", "web-access", "zk-auth"])
+  for_each  = toset(["db-password", "kafka", "web-access", "zk-auth", "grpc-tls", "argocd-admin"])
   secret_id = "${var.prefix}-${each.value}"
 
   replication {

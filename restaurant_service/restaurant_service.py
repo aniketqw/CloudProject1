@@ -3,6 +3,7 @@ from concurrent import futures
 from functools import wraps
 import logging
 import grpc
+from common import grpc_tls
 from google.api_core.exceptions import GoogleAPICallError
 from restaurant_service import restaurant_pb2 as pb, restaurant_pb2_grpc as rpc
 from restaurant_service.domain import (DuplicateRecord, InvalidStoredData, MissingRecord,
@@ -112,7 +113,8 @@ class RestaurantServiceServicer(rpc.RestaurantServiceServicer):
 def build_server(repository, address):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     rpc.add_RestaurantServiceServicer_to_server(RestaurantServiceServicer(repository), server)
-    port = server.add_insecure_port(address)
+    credentials = grpc_tls.server_credentials()
+    port = server.add_secure_port(address, credentials) if credentials else server.add_insecure_port(address)
     if not port:
         raise RuntimeError("Restaurant gRPC port could not be bound.")
     return server, port
