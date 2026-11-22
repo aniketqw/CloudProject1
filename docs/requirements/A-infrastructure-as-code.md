@@ -20,7 +20,7 @@ Terraform was generated as JSON by Python and applied by a Python wrapper in fiv
 `docs/evidence/02-platform/`, `04-rebuild/`, `12-plan-no-changes/` (plan after apply: No changes).
 
 ## 6. Result
-PARTIAL, 2026-11-22. One apply builds everything (96 resources) and a later plan shows No changes. The existing Confluent cluster is accepted as the Kafka provider; `confluent.tf` stays optional. Teardown: a destroy-time helper clears stuck Argo syncs and the Kafka topics can be destroyed by the same destroy (T-075); the result of the last teardown run is in the final trace row. Pause is a Terraform variable (`paused`); the Python pause/resume tooling is kept only for the Flink savepoint part. Not met: while defects were being found the apply needed several runs, and a clean run from empty with zero manual steps has not been repeated since the fixes.
+PARTIAL, 2026-11-22. One apply builds everything (108 resources, no errors, four times from the post-teardown state); a plan after it shows No changes. Teardown is two documented commands (about 15 minutes) and repeatable (T-086, T-093, T-098). The platform now starts without hand syncs (about 19 minutes to a running Flink job, T-096) after the fixes in T-090 and T-095. The existing Confluent cluster is accepted as the Kafka provider. Pause is a Terraform variable. Not proven: a run from a completely empty project (the VPC, APIs and state bucket survive a teardown).
 
 ## 7. Open
-A clean second rebuild from empty with zero manual steps (P6); one stale failed launcher Job still needed a manual delete once.
+A rebuild from an empty project with zero manual steps.
