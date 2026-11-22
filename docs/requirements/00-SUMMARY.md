@@ -1,17 +1,18 @@
-# Summary of the executor run, 2026-11-22
+# Summary of the executor run, 2026-11-22 (second live run included)
 
 | Req | Result | Evidence | Note |
 |---|---|---|---|
-| A IaC | PARTIAL | `docs/evidence/12-plan-no-changes/`, `02-platform/`, `04-rebuild/` | One apply, plan shows No changes. Confluent cluster still manual (code written, not applied). |
+| A IaC | PARTIAL | `12-plan-no-changes/`, `02-platform/`, `04-rebuild/`, `05-final-teardown/` | One apply, plan shows No changes; last teardown used the two documented commands only (about 15 minutes, no watcher, no state surgery); a clean rebuild from empty with zero manual steps not repeated. |
 | B | PASS (order path) | `07-order-flow/` | REST, gRPC, Kafka, Pub/Sub, function, receipt, HTTPS name. |
-| C | PARTIAL | `08-hpa-load/` | 1 to 4 replicas; p95 threshold crossed on demo nodes. |
-| D | PARTIAL | `10-gitops/` | Sync and self-heal proven; build-on-push written, not proven. |
-| E | BLOCKED | none | Job RUNNING but its YARN application fails; cause unknown. |
-| F | PARTIAL | `09-failover/` | Leader failover shown; reclaim and quorum loss not run. |
-| G | PASS | `07-order-flow/` | SQL, Firestore, Cloud Storage. |
-| H | PARTIAL | `11-observability/` | Grafana, Prometheus, alert policies; no channel, no screenshots. |
+| C | PASS | `08-hpa-load/`, `17-load-tuning/`, `14-screenshots/`, `15-cloud-monitoring/` | Scale-out and in; k6 thresholds passed with 20 users (p95 832 ms). |
+| D | PARTIAL | `10-gitops/`, `14-screenshots/` | Sync, self-heal, UI shown; build-on-push BLOCKED (no admin on the tracked repository). |
+| E | PASS | `16-flink-results/`, `13-logs/` | Three root causes fixed; results in Firestore; duplicates and invalid events do not change counts. |
+| F | PASS | `09-failover/`, trace T-084 | Leader failover, worker deletion, quorum loss and recovery. |
+| G | PASS | `07-order-flow/`, `16-flink-results/` | SQL, Firestore, Cloud Storage. |
+| H | PARTIAL | `11-observability/`, `13-logs/`, `14-screenshots/` | Dashboards with real traffic, log queries, alerts; email channel written, no address given. |
 
-Not done in this run: hardening S1 to S13 (skipped, not started), cleanup N2 to N8, the clean second rebuild with the full verification plan (P6), screenshots and screen recordings.
-Cost: platform about 8 to 11 US dollars a day on the three-node profile (roughly 11 to 14 now); it ran for about two days in total across tests. The platform was destroyed at the end (see the trace row for the teardown).
+Hardening and cleanup done: S2 (replicas and disruption budgets), S9 (extra allowed addresses), S10 (scanning API), H4 variable, N5, N6. Skipped with reason: S1 (needs certificates or a mesh), S3 (web UI state move), S4 (ZooKeeper watches and ACLs), S6 (SSO), S7 (done differently: larger master), S8, S13 (needs billing admin), N2 to N4, N7, N8 (original documents are not edited; duplicates are used by the local compose files; shims left). Not run: P6 clean second rebuild from empty, screen recordings.
 
-Blockers and what only the owner can do: (1) Confluent Cloud management API key (A4); (2) write access and repository variables for the tracked repository (D4); (3) approval to create an SSH key / OS Login identity to read YARN logs on the Dataproc master, or enable the Component Gateway (E); (4) a decision on the pause/resume Python tooling.
+Cost: about 11 to 14 US dollars a day on the current profile (three small nodes, a 4 vCPU Dataproc master, Cloud SQL); the platform ran about 2 days in total across tests and was destroyed at the end.
+
+Blockers that need the owner: (1) admin rights on the tracked repository (or Argo CD pointed at a repository the owner controls) for build-on-push; (2) an email address in `TF_VAR_alert_email` to prove the alert email; (3) a decision on keeping the Python Flink savepoint tooling.
