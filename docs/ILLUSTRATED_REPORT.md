@@ -43,3 +43,15 @@ Destroyed state (dashboard, storage, Kubernetes, Cloud SQL, Dataproc, service ac
 
 ## 5. What has no picture yet
 Order flow, ZooKeeper failover, the k6 summary and the Flink results are shown as text and tables, not pictures: see `evidence/07-order-flow/`, `09-failover/`, `17-load-tuning/`, `16-flink-results/`. At the next live window I will add: the Flink dashboard, the Cloud Monitoring console, the order in the web UI, an Argo CD view of a Git change turning OutOfSync then Synced, and the replacement for the idle Grafana picture.
+
+## 6. Build-on-push, the stateless Web UI and Flink (second live run)
+![Argo CD after build-on-push](evidence/14-screenshots/argocd-after-build-on-push.png)
+*Requirement D. The "Last sync" box shows the author `build-image` (the GitHub Actions bot) and the comment "Release image ci-d9bde5ba6f": a source change was built by the workflow, the new tag was committed to Git, and Argo CD synced it. The tree shows each service's new ReplicaSet at revision 2.*
+
+![Flink dashboard](evidence/20-flink-and-console/flink-running-jobs.png)
+*Requirement E. The Apache Flink dashboard (opened through the Dataproc Component Gateway) lists one running job, "Restaurant Service - stateful kitchen-load analytics", with its two tasks RUNNING.*
+
+![YARN applications](evidence/20-flink-and-console/yarn-applications.png)
+*The same job as a YARN application on the managed Dataproc cluster.*
+
+Text evidence with no picture: ZooKeeper refuses unauthenticated reads (`evidence/18-zookeeper-acl/`), the build-on-push run steps (`evidence/19-build-on-push/`), the alert test (`evidence/21-alert-email/`), and the Web UI rows in Cloud SQL (trace T-094).
