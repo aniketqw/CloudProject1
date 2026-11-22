@@ -70,8 +70,11 @@ resource "google_dataproc_cluster" "flink" {
         "flink:jobmanager.memory.process.size"                            = "1024m"
         "flink:taskmanager.memory.process.size"                           = "2048m"
         "flink:taskmanager.numberOfTaskSlots"                             = "1"
-        "yarn:yarn.nodemanager.resource.memory-mb"                        = var.compute_profile == "demo" ? "4096" : "8192"
-        "yarn:yarn.scheduler.maximum-allocation-mb"                       = var.compute_profile == "demo" ? "4096" : "8192"
+        # Root cause of the failing job: the Dataproc Flink image already ships the Kafka connector, and the job jar bundles
+        # its own copy, so the two class loaders disagreed (LinkageError: loader constraint violation). Parent first uses one copy.
+        "flink:classloader.resolve-order"           = "parent-first"
+        "yarn:yarn.nodemanager.resource.memory-mb"  = var.compute_profile == "demo" ? "4096" : "8192"
+        "yarn:yarn.scheduler.maximum-allocation-mb" = var.compute_profile == "demo" ? "4096" : "8192"
       }
     }
   }

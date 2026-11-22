@@ -27,9 +27,14 @@ def spec(env):
     expected_secret = "projects/" + project + "/secrets/" + prefix + "-kafka/versions/"
     if not env["KAFKA_SECRET_VERSION"].startswith(expected_secret) or not re.fullmatch(r"[1-9][0-9]*", env["KAFKA_SECRET_VERSION"][len(expected_secret):]):
         raise ValueError("Kafka credentials must use this deployment's pinned Secret Manager version reference.")
+    release = release_key(env)
+    # One transactional id prefix per release: the Kafka sink scans every earlier id of its prefix at start-up, so a prefix
+    # shared with dead runs kept the tasks initializing for many minutes. Stable while the release is, so restarts still
+    # abort their own lingering transactions.
     settings = {"APP_ENV": "cloud", "KAFKA_BOOTSTRAP_SERVERS": env["KAFKA_BOOTSTRAP_SERVERS"],
         "KAFKA_SECRET_VERSION": env["KAFKA_SECRET_VERSION"],
-        "ANALYTICS_CHECKPOINT_URI": env["ANALYTICS_CHECKPOINT_URI"], "ANALYTICS_WINDOW_SECONDS": "60"}
+        "ANALYTICS_CHECKPOINT_URI": env["ANALYTICS_CHECKPOINT_URI"], "ANALYTICS_WINDOW_SECONDS": "60",
+        "ANALYTICS_TRANSACTION_PREFIX": "restaurant-analytics-" + release[:12] + "-"}
     gs_parts(env["ANALYTICS_JAR_URI"])
     gs_parts(settings["ANALYTICS_CHECKPOINT_URI"])
     run_id = env.get("ANALYTICS_RUN_ID", "")
@@ -40,7 +45,6 @@ def spec(env):
         gs_parts(savepoint)
         if not savepoint.startswith(settings["ANALYTICS_CHECKPOINT_URI"].rstrip("/") + "/savepoints/"):
             raise ValueError("Restore only from this deployment's protected savepoint prefix.")
-    release = release_key(env)
     digest = hashlib.sha256(json.dumps([release, run_id, savepoint]).encode()).hexdigest()[:20]
     job = {"reference": {"projectId": project, "jobId": "food-analytics-" + digest},
         "placement": {"clusterName": cluster},
