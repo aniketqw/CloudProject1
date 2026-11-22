@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import threading
+import time
 import uuid
 from kazoo.client import KazooClient, KazooState
 from kazoo.exceptions import KazooException, NoNodeError
@@ -38,6 +39,10 @@ class Coordination:
             command_retry=KazooRetry(max_tries=2, delay=0.1, max_delay=0.2, deadline=2),
             connection_retry=KazooRetry(max_tries=-1, delay=0.2, max_delay=1))
         self.client.add_listener(self._state)
+        # Worker list cache kept fresh by a ZooKeeper children watch instead of re-reading it every pass.
+        self._workers_cache = None
+        self._workers_loaded_at = 0.0
+        self._workers_dirty = True
 
     def _state(self, state):
         if state == KazooState.CONNECTED:
@@ -57,6 +62,7 @@ class Coordination:
         self.client.start(timeout=10)
         for suffix in ("", "/election", "/workers", "/leases"):
             self.client.ensure_path(ROOT + suffix)
+        self.client.ChildrenWatch(ROOT + "/workers", self._workers_changed)
         self.guard()
         return self
 
@@ -77,7 +83,24 @@ class Coordination:
         except (KazooException, ValueError, TypeError):
             raise ServiceUnavailable("ZooKeeper coordination could not be verified.") from None
 
+    def _workers_changed(self, _children):
+        self._workers_dirty = True  # a worker joined or left; the next workers() call reads again
+        return True  # keep watching (Kazoo re-arms the watch and calls this again after a reconnect)
+
     def workers(self):
+        """The live workers. Re-read from ZooKeeper only when the children watch fired (or at most every 5 s as a
+        safety net); a worker's own node never changes after it is created, so the cache cannot go stale otherwise."""
+        self.guard()
+        if (self._workers_cache is not None and not self._workers_dirty
+                and time.monotonic() - self._workers_loaded_at < 5.0):
+            return [dict(item) for item in self._workers_cache]
+        self._workers_dirty = False  # cleared before reading: a change during the read sets it again
+        result = self._load_workers()
+        self._workers_cache = result
+        self._workers_loaded_at = time.monotonic()
+        return [dict(item) for item in result]
+
+    def _load_workers(self):
         self.guard()
         try:
             self.client.sync(ROOT)

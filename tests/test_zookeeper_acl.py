@@ -21,3 +21,34 @@ class ZookeeperAcl(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WorkerCache(unittest.TestCase):
+    def _coordination(self):
+        c = Coordination(environ=ENV)
+        c.guard = lambda: None
+        c.loads = 0
+        def load():
+            c.loads += 1
+            return [{"worker_id": "w", "name": "n", "capabilities": ["payment"], "session": "1"}]
+        c._load_workers = load
+        return c
+
+    def test_unchanged_worker_list_is_not_read_again(self):
+        c = self._coordination()
+        for _ in range(20):
+            c.workers()
+        self.assertEqual(c.loads, 1)
+
+    def test_a_watch_event_forces_one_fresh_read(self):
+        c = self._coordination()
+        c.workers()
+        c._workers_changed(["w", "x"])
+        c.workers()
+        c.workers()
+        self.assertEqual(c.loads, 2)
+
+    def test_callers_cannot_change_the_cache(self):
+        c = self._coordination()
+        c.workers()[0]["name"] = "changed"
+        self.assertEqual(c.workers()[0]["name"], "n")
