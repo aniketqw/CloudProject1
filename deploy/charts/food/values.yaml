@@ -333,7 +333,7 @@
     }
   },
   "loadTest": {
-    "enabled": true,
+    "enabled": false,
     "runId": "demo-run-4",
     "env": {
       "VUS": "20",
