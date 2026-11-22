@@ -14,7 +14,9 @@ resource "helm_release" "argocd" {
 
   values = [jsonencode({
     configs = {
-      params = { "server.insecure" = false }
+      # A sync sometimes waits for a hook Job that has already completed and never notices. After 5 minutes the sync is
+      # failed and the retry policy starts a fresh one, which passes; without this someone had to clear it by hand.
+      params = { "server.insecure" = false, "controller.sync.timeout.seconds" = "300" }
       cm = merge({
         "resource.customizations.health.argoproj.io_Application" = "hs = {}\nhs.status = \"Progressing\"\nif obj.status ~= nil and obj.status.health ~= nil then\n hs.status = obj.status.health.status\n hs.message = obj.status.health.message\nend\nreturn hs"
       }, var.argocd_cm_extra)
