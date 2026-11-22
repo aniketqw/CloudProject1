@@ -29,7 +29,7 @@ resource "google_project_service" "apis" {
     "eventarc.googleapis.com", "cloudbuild.googleapis.com", "artifactregistry.googleapis.com",
     "secretmanager.googleapis.com", "dataproc.googleapis.com", "logging.googleapis.com",
     "monitoring.googleapis.com", "iamcredentials.googleapis.com", "dns.googleapis.com",
-    "iap.googleapis.com", "oslogin.googleapis.com",
+    "iap.googleapis.com", "oslogin.googleapis.com", "containerscanning.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false

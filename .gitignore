@@ -2,8 +2,6 @@
 .env
 .env.*
 !.env.example
-!.env.kafka.example
-!.env.local.example
 secret.txt
 secrets.txt
 secrets*.json
@@ -34,7 +32,6 @@ crash.log
 # Local protobuf compiler output
 /.local-build/
 
-!.env.assignment.example
 /deploy/config.team.json
 /deploy/terraform/**/.terraform/
 /deploy/terraform/**/backend.hcl

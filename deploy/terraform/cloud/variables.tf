@@ -139,6 +139,18 @@ variable "alert_notification_channels" {
   description = "Existing Cloud Monitoring notification channel IDs to notify. Empty keeps alerts visible in the console only."
 }
 
+variable "admin_cidrs" {
+  type        = list(string)
+  default     = []
+  description = "Extra addresses (x.x.x.x/32) allowed to reach the cluster API besides admin_cidr, for example a second network."
+}
+
+variable "alert_email" {
+  type        = string
+  default     = ""
+  description = "Address that receives the alert emails. Empty creates no email channel."
+}
+
 # -- Teardown
 variable "deletion_protection" {
   type        = bool

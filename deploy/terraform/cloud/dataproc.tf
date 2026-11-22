@@ -61,15 +61,17 @@ resource "google_dataproc_cluster" "flink" {
       image_version       = "3.0.4-debian13"
       optional_components = ["FLINK"]
       override_properties = {
-        "dataproc:dataproc.logging.stackdriver.enable"    = "true"
-        "dataproc:dataproc.monitoring.stackdriver.enable" = "true"
-        "dataproc:jobs.file-backed-output.enable"         = "true"
-        "dataproc:dataproc.allow.zero.workers"            = local.capacity.flink_workers == 0 ? "true" : "false"
-        "flink:jobmanager.memory.process.size"            = "1024m"
-        "flink:taskmanager.memory.process.size"           = "2048m"
-        "flink:taskmanager.numberOfTaskSlots"             = "1"
-        "yarn:yarn.nodemanager.resource.memory-mb"        = var.compute_profile == "demo" ? "4096" : "8192"
-        "yarn:yarn.scheduler.maximum-allocation-mb"       = var.compute_profile == "demo" ? "4096" : "8192"
+        "dataproc:dataproc.logging.stackdriver.enable"                    = "true"
+        "dataproc:dataproc.monitoring.stackdriver.enable"                 = "true"
+        "dataproc:dataproc.logging.stackdriver.job.driver.enable"         = "true"
+        "dataproc:dataproc.logging.stackdriver.job.yarn.container.enable" = "true"
+        "dataproc:jobs.file-backed-output.enable"                         = "true"
+        "dataproc:dataproc.allow.zero.workers"                            = local.capacity.flink_workers == 0 ? "true" : "false"
+        "flink:jobmanager.memory.process.size"                            = "1024m"
+        "flink:taskmanager.memory.process.size"                           = "2048m"
+        "flink:taskmanager.numberOfTaskSlots"                             = "1"
+        "yarn:yarn.nodemanager.resource.memory-mb"                        = var.compute_profile == "demo" ? "4096" : "8192"
+        "yarn:yarn.scheduler.maximum-allocation-mb"                       = var.compute_profile == "demo" ? "4096" : "8192"
       }
     }
   }

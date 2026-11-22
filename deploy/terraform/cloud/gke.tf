@@ -31,6 +31,14 @@ resource "google_container_cluster" "gke" {
       cidr_block   = var.admin_cidr
       display_name = "team-deployer"
     }
+
+    dynamic "cidr_blocks" {
+      for_each = var.admin_cidrs
+      content {
+        cidr_block   = cidr_blocks.value
+        display_name = "extra-admin"
+      }
+    }
   }
 
   network_policy {

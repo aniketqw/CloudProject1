@@ -150,5 +150,10 @@ spec:
     scaleDown: {stabilizationWindowSeconds: {{ default 180 $.Values.hpa.scaleDownSeconds }}}
     scaleUp: {stabilizationWindowSeconds: 30}
 ---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: {{ $name }}}
+spec: {minAvailable: 1, selector: {matchLabels: {app: {{ $name }}}}}
+---
 {{- end }}
 {{- end }}
