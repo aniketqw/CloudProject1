@@ -204,10 +204,10 @@ The per-requirement results, evidence paths and the open blockers are in `docs/r
 | Phase | Result |
 |---|---|
 | P1 | PASS. 33 pods Running and Argo CD `food` and `food-platform` Synced and Healthy on the three-node profile with no hand edits (T-056, T-064; `docs/evidence/06-app-running/`). |
-| P2 | PARTIAL. B, C, E, F, G pass; D and H partial (build-on-push blocked, alert email needs an address). |
+| P2 | PARTIAL. B, C, E, F, G pass; D partial (build-on-push blocked: no admin on the tracked repository); H partial (alert email address set in `.env`, applied and tested at the next apply). |
 | P3 | PARTIAL. A3 and B6 pass, A4 accepted, D4 blocked. |
-| P4 | SKIPPED, not started (section 5 rows above). |
-| P5 | PARTIAL. N1 was not a defect; N2 to N8 not started. |
-| P6 | PARTIAL. Final destroy done twice (T-074, T-086); a clean rebuild from empty with zero manual steps was not repeated. Final destroy done (T-074); the clean second rebuild with the full verification plan was not run. |
+| P4 | PARTIAL. Done: S2 (2 replicas and disruption budgets), S7 (larger Dataproc master), S9 (extra allowed addresses), S10 (scanning API enabled). Skipped with a reason: S1, S3, S4, S6, S8, S13 (see `docs/requirements/00-SUMMARY.md`). |
+| P5 | PARTIAL. Done: N5 (unused `deploy/build.py` removed), N6 (stale ignore lines removed). N1 was not a defect. Not done: N2, N3 (original documents are not edited), N4 (the duplicates are used by the local compose files), N7, N8. |
+| P6 | PARTIAL. Final destroy done twice (T-074, T-086); a clean rebuild from empty with zero manual steps was not repeated. |
 
 Trace note: the commit with the free hostname, the paused switch and the ingress order (34c5a6b) is recorded as T-059 to T-061 and was proven afterwards (certificate Active, SQL stopped and nodes at 0, services started).
