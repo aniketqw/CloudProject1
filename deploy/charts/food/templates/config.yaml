@@ -25,7 +25,7 @@ metadata:
   name: food-worker
 automountServiceAccountToken: false
 ---
-{{- if hasKey .Values.workloads "web-ui" }}
+{{- if and (hasKey .Values.workloads "web-ui") (ne .Values.profile "cloud") }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

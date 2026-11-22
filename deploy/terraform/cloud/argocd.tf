@@ -19,6 +19,8 @@ locals {
     { for name in ["customer-service", "order-service"] : name => { resources = local.http_resources } if local.demo },
     { for name in ["kitchen-sync"] : name => { resources = local.sync_resources } if local.demo },
   )
+  # The Web UI keeps no state on its pod any more, so it can run two replicas behind the load balancer.
+  web_workloads = { "web-ui" = { sql = true, replicas = 2 } }
   demo_pool_env = { for k, v in { DB_POOL_SIZE = "2", DB_MAX_OVERFLOW = "0", DB_POOL_TIMEOUT = "10" } : k => v if local.demo }
 
   # Overrides only: Argo CD merges these over deploy/charts/food/values.yaml.
@@ -40,6 +42,7 @@ locals {
       CLOUD_LIFECYCLE_PROTOCOL     = "1"
       PROJECT_ID                   = var.project_id
       KAFKA_BOOTSTRAP_SERVERS      = var.kafka_bootstrap
+      WEB_UI_DB                    = "mysql" # Web UI sessions and carts live in Cloud SQL, not on a pod disk
       NOTIFICATION_RECEIPTS_BUCKET = google_storage_bucket.receipts.name
       NOTIFICATION_DISPATCH_TOPIC  = google_pubsub_topic.dispatch.name
     })
@@ -81,7 +84,7 @@ locals {
     }
 
     hpa       = merge({ min = 2 }, { for k, v in { max = 4 } : k => v if local.demo })
-    workloads = local.demo_workloads
+    workloads = merge(local.demo_workloads, { for k, v in local.web_workloads : k => merge(lookup(local.demo_workloads, k, {}), v) })
   }
 
   sync_policy = {

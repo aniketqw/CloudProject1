@@ -113,10 +113,10 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 15
           {{- end }}
-          {{- if $w.web }}
+          {{- if and $w.web (ne $.Values.profile "cloud") }}
           volumeMounts: [{name: web-data, mountPath: /data}]
           {{- end }}
-      {{- if $w.web }}
+      {{- if and $w.web (ne $.Values.profile "cloud") }}
       volumes: [{name: web-data, persistentVolumeClaim: {claimName: web-data}}]
       {{- end }}
 ---
