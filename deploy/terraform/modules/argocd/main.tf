@@ -20,6 +20,10 @@ resource "helm_release" "argocd" {
       cm = merge({
         "resource.customizations.health.argoproj.io_Application" = "hs = {}\nhs.status = \"Progressing\"\nif obj.status ~= nil and obj.status.health ~= nil then\n hs.status = obj.status.health.status\n hs.message = obj.status.health.message\nend\nreturn hs"
       }, var.argocd_cm_extra)
+      secret = var.admin_password_bcrypt == "" ? {} : {
+        argocdServerAdminPassword      = var.admin_password_bcrypt
+        argocdServerAdminPasswordMtime = var.admin_password_mtime
+      }
       rbac = { "policy.default" = "role:readonly" }
     }
     server = {

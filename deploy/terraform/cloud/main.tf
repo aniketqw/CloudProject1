@@ -1,9 +1,11 @@
 locals {
   secret_values = {
-    "db-password" = random_password.database.result
-    "zk-auth"     = "food:${random_password.zookeeper.result}"
-    "kafka"       = jsonencode({ api_key = var.kafka_api_key, api_secret = var.kafka_api_secret })
-    "web-access"  = jsonencode({ username = var.operator_user, password_hash = var.operator_password_hash })
+    "db-password"  = random_password.database.result
+    "zk-auth"      = "food:${random_password.zookeeper.result}"
+    "argocd-admin" = random_password.argocd_admin.result
+    "grpc-tls"     = jsonencode({ ca = tls_self_signed_cert.grpc_ca.cert_pem, cert = tls_locally_signed_cert.grpc_server.cert_pem, key = tls_private_key.grpc_server.private_key_pem })
+    "kafka"        = jsonencode({ api_key = var.kafka_api_key, api_secret = var.kafka_api_secret })
+    "web-access"   = jsonencode({ username = var.operator_user, password_hash = var.operator_password_hash })
   }
   profiles = jsondecode(file("${path.module}/../../profiles.json"))
   capacity = local.profiles[var.compute_profile]
@@ -30,7 +32,7 @@ resource "google_project_service" "apis" {
     "eventarc.googleapis.com", "cloudbuild.googleapis.com", "artifactregistry.googleapis.com",
     "secretmanager.googleapis.com", "dataproc.googleapis.com", "logging.googleapis.com",
     "monitoring.googleapis.com", "iamcredentials.googleapis.com", "dns.googleapis.com",
-    "iap.googleapis.com", "oslogin.googleapis.com", "containerscanning.googleapis.com",
+    "iap.googleapis.com", "oslogin.googleapis.com", "containerscanning.googleapis.com", "billingbudgets.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false

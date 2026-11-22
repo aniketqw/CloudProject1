@@ -32,10 +32,14 @@ jobs:
           IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{ vars.GCP_PREFIX }}-app/app:${TAG}"
           docker build --platform linux/amd64 -f Dockerfile.local -t "$IMAGE" .
           docker push "$IMAGE"
+          DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" | sed 's/.*@//')"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
       - name: Record the tag in Git
         run: |
           sed -i "s/^imageTag: .*/imageTag: ${{ steps.tag.outputs.tag }}/" deploy/environments/team/image.yaml
+          sed -i "/^imageDigest:/d" deploy/environments/team/image.yaml
+          echo "imageDigest: ${{ steps.tag.outputs.digest }}" >> deploy/environments/team/image.yaml
           git config user.name "build-image"
           git config user.email "build-image@users.noreply.github.com"
           git commit -am "Release image ${{ steps.tag.outputs.tag }}" && git push

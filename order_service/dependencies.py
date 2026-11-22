@@ -7,6 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 import grpc
 from werkzeug.exceptions import Conflict, ServiceUnavailable, UnprocessableEntity
+from common import grpc_tls
 from restaurant_service import restaurant_pb2 as pb, restaurant_pb2_grpc as rpc
 
 
@@ -16,7 +17,7 @@ class OrderDependencies:
         target = os.environ.get("RESTAURANT_GRPC_TARGET", "127.0.0.1:50051")
         service_endpoint(self.customer_base,{"http://customer-service:8083","http://127.0.0.1:8083","http://localhost:8083"})
         service_endpoint(target,{"restaurant-service:50051","127.0.0.1:50051","localhost:50051"},grpc=True)
-        self.channel = grpc.insecure_channel(target)
+        self.channel = grpc_tls.channel(target)
         self.restaurant = rpc.RestaurantServiceStub(self.channel)
 
     def close(self):
