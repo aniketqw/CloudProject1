@@ -4,6 +4,8 @@ from datetime import datetime,timezone
 import hashlib
 import json
 from pathlib import Path
+import os
+import re
 import secrets
 import sqlite3
 import time
@@ -13,9 +15,60 @@ from werkzeug.exceptions import Conflict
 def digest(value):
     return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":")).encode()).hexdigest()
 
+MYSQL_DDL = (
+    "CREATE TABLE IF NOT EXISTS web_sessions(id VARCHAR(64) PRIMARY KEY, csrf VARCHAR(64) NOT NULL, data MEDIUMTEXT NOT NULL, updated DOUBLE NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS web_workspaces(id VARCHAR(64) PRIMARY KEY, data MEDIUMTEXT NOT NULL, seq BIGINT NOT NULL AUTO_INCREMENT, UNIQUE KEY(seq))",
+    "CREATE TABLE IF NOT EXISTS web_operations(session_id VARCHAR(64) NOT NULL, id VARCHAR(190) NOT NULL, signature VARCHAR(64) NOT NULL,"
+    " data MEDIUMTEXT NOT NULL, response MEDIUMTEXT NULL, status VARCHAR(16) NOT NULL, seq BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(session_id,id), UNIQUE KEY(seq))",
+)
+
+
+class MySQLConnection:
+    """Gives a MySQL connection the small sqlite3 surface State uses, so the same methods run on Cloud SQL.
+    Cloud SQL replaces the pod's disk file: any replica can serve any user (the Web UI no longer holds state)."""
+    def __init__(self, connection):
+        import pymysql
+        self.connection = connection
+        self.cursor = connection.cursor(pymysql.cursors.DictCursor)
+        self.locking = False
+
+    def execute(self, sql, params=()):
+        query = sql.strip()
+        if query.upper().startswith("BEGIN"):
+            self.connection.begin()
+            self.locking = True
+            return self
+        query = query.replace("?", "%s")
+        query = re.sub(r"\b(sessions|workspaces|operations)\b", r"web_\1", query)
+        query = query.replace("INSERT INTO web_sessions VALUES", "INSERT INTO web_sessions(id,csrf,data,updated) VALUES")
+        query = query.replace("INSERT INTO web_workspaces VALUES", "INSERT INTO web_workspaces(id,data) VALUES")
+        query = query.replace("INSERT INTO web_operations VALUES", "INSERT INTO web_operations(session_id,id,signature,data,response,status) VALUES")
+        query = query.replace("ON CONFLICT(id) DO UPDATE SET data=excluded.data", "ON DUPLICATE KEY UPDATE data=VALUES(data)")
+        query = query.replace("ORDER BY rowid", "ORDER BY seq")
+        if self.locking and query.upper().startswith("SELECT") and "FOR UPDATE" not in query.upper():
+            query += " FOR UPDATE"  # BEGIN IMMEDIATE in sqlite; a row lock in MySQL
+        self.cursor.execute(query, params)
+        return self
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+
+    def __iter__(self):
+        return iter(self.cursor.fetchall())
+
+
 class State:
     def __init__(self,path):
-        self.path=str(path);Path(path).parent.mkdir(parents=True,exist_ok=True)
+        self.mysql=os.environ.get("WEB_UI_DB")=="mysql"
+        self.path=str(path)
+        if self.mysql:
+            with self.connection() as c:
+                for statement in MYSQL_DDL:c.execute(statement)
+            return
+        Path(path).parent.mkdir(parents=True,exist_ok=True)
         with self.connection() as c:
             c.executescript("""
             CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, csrf TEXT NOT NULL, data TEXT NOT NULL, updated REAL NOT NULL);
@@ -25,6 +78,18 @@ class State:
             """)
     @contextmanager
     def connection(self):
+        if self.mysql:
+            import pymysql
+            raw=pymysql.connect(host=os.environ.get("DB_PRIVATE_IP","127.0.0.1"),port=int(os.environ.get("DB_PORT","3306")),
+                user=os.environ["DB_USER"],password=os.environ["DB_PASSWORD"],database=os.environ.get("DB_NAME","food"),
+                autocommit=False,connect_timeout=10)
+            c=MySQLConnection(raw)
+            try:
+                yield c;raw.commit()
+            except BaseException:
+                raw.rollback();raise
+            finally:raw.close()
+            return
         c=sqlite3.connect(self.path,timeout=10);c.row_factory=sqlite3.Row
         try:
             yield c;c.commit()
