@@ -6,6 +6,7 @@ import os
 import re
 import uuid
 import grpc
+from common import grpc_tls
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import BadRequest, HTTPException
 from restaurant_service import restaurant_pb2 as pb, restaurant_pb2_grpc as rpc
@@ -41,7 +42,7 @@ def create_app(config=None, *, stub=None):
     if stub is None:
         target = os.environ.get("RESTAURANT_GRPC_TARGET", "127.0.0.1:50051")
         service_endpoint(target,{"restaurant-service:50051","localhost:50051","127.0.0.1:50051"},grpc=True)
-        channel = grpc.insecure_channel(target)
+        channel = grpc_tls.channel(target)
         atexit.register(channel.close)
         stub = rpc.RestaurantServiceStub(channel)
 

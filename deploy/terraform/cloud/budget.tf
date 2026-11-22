@@ -14,6 +14,7 @@ variable "budget_usd" {
 }
 
 resource "google_billing_budget" "monthly" {
+  provider        = google.billing
   count           = var.billing_account_id == "" ? 0 : 1
   billing_account = var.billing_account_id
   display_name    = "${var.prefix} monthly budget"

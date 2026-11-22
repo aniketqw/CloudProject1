@@ -24,7 +24,8 @@ resource "tls_private_key" "grpc_server" {
 
 resource "tls_cert_request" "grpc_server" {
   private_key_pem = tls_private_key.grpc_server.private_key_pem
-  dns_names       = ["restaurant-service", "restaurant-service.food.svc", "restaurant-service.food.svc.cluster.local"]
+  dns_names       = ["restaurant-service", "restaurant-service.food.svc", "restaurant-service.food.svc.cluster.local", "localhost"]
+  ip_addresses    = ["127.0.0.1"] # the pod's own health probe connects over the loopback address
 
   subject {
     common_name = "restaurant-service"
