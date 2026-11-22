@@ -70,7 +70,7 @@ Port-forward once: `kubectl -n food port-forward svc/customer-service 8083:8083 
 | F-3 | `kubectl -n food delete pod <leader>`; repeat F-2 | another leader, higher epoch | election after failure | `task_scheduler/leader.py`, epoch and fencing `task_scheduler/fencing.py` | [run] `evidence/09-failover/` |
 | F-4 | `kubectl -n food delete pod -l app=payment-worker` right after a payment | order still PAID, one capture | no duplicate work | leases `task_scheduler/coordination.py` (`create_lease`), worker loop `payment_service/worker.py`, fencing `payment_service/fencing.py` | [run] |
 | F-5 | `kubectl -n food delete pod zookeeper-1 zookeeper-2 --grace-period=0 --force`; repeat F-2 | unavailable for seconds, then back, epoch higher | quorum loss and recovery | session handling `coordination.py` (`strict_session`, `live`), `zookeeper.yaml` (3 replicas, `podManagementPolicy: Parallel`) | [run] |
-| F-6 | unauthenticated ZooKeeper read is refused (after the ACL work) | `NoAuth` | access control | ACL work: `task_scheduler/coordination.py` (planned) | [to run] |
+| F-6 | unauthenticated ZooKeeper read is refused (after the ACL work) | `NoAuth` | access control | ACL work: `task_scheduler/coordination.py` (planned) | [run] `evidence/18-zookeeper-acl/` |
 
 ## G. Data stores
 | Step | Command | You should see | Proves | Responsible code | Status |
