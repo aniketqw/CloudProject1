@@ -57,6 +57,9 @@ spec:
           {{- end }}
           envFrom:
             - configMapRef: {name: food-config}
+            {{- if eq $.Values.profile "cloud" }}
+            - secretRef: {name: food-zk, optional: true}
+            {{- end }}
             {{- if $w.sql }}
             - secretRef: {name: food-db}
             {{- end }}

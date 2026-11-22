@@ -9,6 +9,7 @@ import uuid
 from kazoo.client import KazooClient, KazooState
 from kazoo.exceptions import KazooException, NoNodeError
 from kazoo.retry import KazooRetry
+from kazoo.security import make_digest_acl
 from werkzeug.exceptions import Conflict, ServiceUnavailable
 
 
@@ -28,7 +29,12 @@ class Coordination:
         self.seen_connected = False
         logger = logging.getLogger("food-delivery.scheduler.zookeeper")
         logger.setLevel(logging.CRITICAL)
-        self.client = KazooClient(hosts=hosts, timeout=6, read_only=False, logger=logger,
+        auth = env.get("ZK_AUTH", "")
+        acl = {}
+        if auth:  # digest credential: every znode this process creates is closed to everyone without it
+            user, _, password = auth.partition(":")
+            acl = {"auth_data": [("digest", auth)], "default_acl": [make_digest_acl(user, password, all=True)]}
+        self.client = KazooClient(hosts=hosts, timeout=6, read_only=False, logger=logger, **acl,
             command_retry=KazooRetry(max_tries=2, delay=0.1, max_delay=0.2, deadline=2),
             connection_retry=KazooRetry(max_tries=-1, delay=0.2, max_delay=1))
         self.client.add_listener(self._state)
