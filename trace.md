@@ -4,7 +4,7 @@ Every change made to this repo for the IaC work is recorded here, grouped by pur
 
 ## How to read this file
 - Changes are grouped into **Groups** (A, B, C, ...). Each group is one purpose, with a short "what and why" paragraph.
-- Each entry has an ID `T-NNN`, in the order the change was made.
+- Each entry has an ID `T-NNN`, in the order the change was made. One ID can have several rows: one row per file touched by the same change.
 - **Action:** `ADDED`, `MODIFIED`, `DELETED` or `RENAMED`.
 - **Relevance:** why the change matters for the requirement. This is the part to read if you only want to understand the work.
 - **Undo:** the exact step to reverse it.
@@ -321,6 +321,7 @@ Purpose: prove the code works against a real project, record before and after, t
 | T-096 | VERIFIED | Platform start-up and Flink (second proof) | After one apply (108 resources, then 4 more after the pool fix) the platform came up unattended: pods Running about 9 minutes later, the Flink job RUNNING about 19 minutes after the apply, with no hand sync. Flink dashboard captured through the Dataproc Component Gateway (the job "Restaurant Service - stateful kitchen-load analytics" RUNNING, 2 tasks). | E and A evidence. | n/a | `docs/evidence/20-flink-and-console/` |
 | T-097 | VERIFIED | Alert email (H4) | With `alert_email` applied, the GKE node CPU policy threshold was lowered by hand to 0.01 (60 s); Cloud Monitoring opened three alerts at 09:52:56 UTC and the policy lists the email channel; the threshold was then restored. Delivery confirmed by the owner: the alert email arrived. | H4. | n/a | `docs/evidence/21-alert-email/` |
 | T-098 | DESTROYED | GCP project | Teardown of the fourth platform, two documented commands, 15:32 to 15:47 (about 15 minutes); only the free Service Networking Connection remained. Listings checked after the run. Still not done: ZooKeeper watches, TLS for gRPC (S1), Argo admin password (S6), state bucket key (S8), image digests (S10), budget alert (S13), cleanup N4/N7/N8, a fully empty clean rebuild, a Cloud Monitoring console picture (needs a Google sign-in). | Cost stopped. | `terraform apply` rebuilds | none |
+| T-099 | CLEANUP | Duplicates, shims, trace ids (N4, N7, N8) | N4: the Grafana dashboard JSON and the k6 script exist twice on purpose (Compose mounts one copy, Helm can only package files inside the chart; a symbolic link fails for both), so they were kept and `tests/test_duplicate_assets.py` now fails if the copies differ. N7: `delivery_assignment_service/das.py` is run by `compose.yaml` and its Dockerfile, and `payment_service/fencing.py` is imported by `payment_service/store.py`, so neither is unused and neither was removed. N8: every repeated trace id is one change with one row per file (checked id by id); the earlier clash between two sessions was already renumbered, so nothing was changed except one sentence in the reading guide. | Nothing needed was removed. | `git revert` | none |
 ## Not done yet (from the analysis, for the next groups)
 Real plan and apply against a GCP project; update the original handoff doc (not edited because it is an original document); (Python provisioning was decided in Group J). Each will become a new group above.
 
