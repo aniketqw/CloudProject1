@@ -13,10 +13,10 @@ None needed in this round; the dashboard title "Supper" was checked and left (pr
 Port-forward Grafana (`monitoring`, service `food-platform-grafana`) and Prometheus; `gcloud monitoring policies list`.
 
 ## 5. Evidence
-`docs/evidence/11-observability/`.
+`docs/evidence/11-observability/`, `13-logs/`, `14-screenshots/grafana-*.png`, `15-cloud-monitoring/`.
 
 ## 6. Result
-PARTIAL, 2026-11-22. Grafana healthy with the application dashboard; Prometheus 32 targets up with `food_*` metrics; three alert policies enabled. No screenshots, no log queries run, no notification channel.
+PARTIAL, 2026-11-22. Grafana dashboard screenshots with real traffic (idle and under load), Prometheus targets up, the log queries run (application, Dataproc, Flink containers, function), three alert policies enabled. The email notification channel is written in Terraform (`alert_email`) but no address was provided, so no email was sent.
 
 ## 7. Open
-Email notification channel in Terraform; panel screenshots under load; the two log queries.
+Put an address in `TF_VAR_alert_email` and apply, then trigger an alert to see the email.

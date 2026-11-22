@@ -16,7 +16,7 @@ Order rows in SQL via `GET /orders/<id>`; restaurant in Firestore via the restau
 `docs/evidence/07-order-flow/`. An order survived a Cloud SQL stop and start (`paused` test, T-061).
 
 ## 6. Result
-PASS, 2026-11-22: order in SQL, restaurant in Firestore, receipt object written to Cloud Storage.
+PASS, 2026-11-22: order in SQL, restaurant in Firestore, receipt object written to Cloud Storage, and analytics results in a Firestore collection (`16-flink-results/`).
 
 ## 7. Open
-Firestore analytics documents (depends on E).
+None.
