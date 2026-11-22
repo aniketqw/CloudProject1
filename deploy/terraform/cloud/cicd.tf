@@ -6,9 +6,16 @@ variable "github_repository" {
   description = "owner/name of the repository whose workflow may push images. Empty disables build-on-push."
 }
 
+# A deleted workload identity pool keeps its id reserved for 30 days, so a fixed id made every rebuild fail with
+# "already exists". A random suffix gives each deployment its own pool.
+resource "random_id" "ci_pool" {
+  count       = var.github_repository == "" ? 0 : 1
+  byte_length = 3
+}
+
 resource "google_iam_workload_identity_pool" "github" {
   count                     = var.github_repository == "" ? 0 : 1
-  workload_identity_pool_id = "${var.prefix}-github"
+  workload_identity_pool_id = "${var.prefix}-github-${random_id.ci_pool[0].hex}"
   display_name              = "GitHub Actions"
 }
 
