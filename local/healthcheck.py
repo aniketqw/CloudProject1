@@ -96,7 +96,8 @@ def main():
     elif service == "restaurant":
         import grpc
         from restaurant_service import restaurant_pb2, restaurant_pb2_grpc
-        with grpc.insecure_channel("127.0.0.1:50051") as channel:
+        from common import grpc_tls
+        with grpc_tls.channel("127.0.0.1:50051") as channel:
             restaurant_pb2_grpc.RestaurantServiceStub(channel).ListRestaurants(
                 restaurant_pb2.ListRequest(page_size=1), timeout=3)
     elif service == "kitchen":

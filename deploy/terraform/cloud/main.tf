@@ -20,6 +20,15 @@ provider "google" {
   zone    = var.zone
 }
 
+# The Billing Budgets API needs a quota project; only the budget uses this alias.
+provider "google" {
+  alias                 = "billing"
+  project               = var.project_id
+  region                = var.region
+  user_project_override = true
+  billing_project       = var.project_id
+}
+
 data "google_project" "current" {
   project_id = var.project_id
 }
