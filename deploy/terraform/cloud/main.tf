@@ -38,6 +38,8 @@ resource "google_project_service" "apis" {
 # ----------------------------------------------- providers for Kafka and GitOps
 # All four settings are given together or not at all; with enable_kafka = false the provider stays unconfigured.
 provider "confluent" {
+  cloud_api_key       = var.confluent_cloud_api_key != "" ? var.confluent_cloud_api_key : null
+  cloud_api_secret    = var.confluent_cloud_api_secret != "" ? var.confluent_cloud_api_secret : null
   kafka_id            = var.enable_kafka ? var.kafka_cluster_id : null
   kafka_rest_endpoint = var.enable_kafka ? var.kafka_rest_endpoint : null
   kafka_api_key       = var.enable_kafka ? var.kafka_admin_api_key : null

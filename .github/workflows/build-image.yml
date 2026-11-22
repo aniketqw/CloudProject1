@@ -1,0 +1,36 @@
+# Build the application image on every push to iac-integration, push it with no key file (workload identity), then record
+# the new tag in Git so Argo CD rolls it out. Needs repository variables GCP_PROJECT, GCP_REGION, GCP_PREFIX,
+# CI_WORKLOAD_IDENTITY_PROVIDER and CI_SERVICE_ACCOUNT (the last two are Terraform outputs).
+name: build-image
+on:
+  push:
+    branches: [iac-integration]
+    paths-ignore: ["deploy/environments/**", "docs/**", "*.md"]
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.CI_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT }}
+      - name: Docker login to Artifact Registry
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+      - name: Build and push
+        id: tag
+        run: |
+          TAG="ci-${GITHUB_SHA::10}"
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{ vars.GCP_PREFIX }}-app/app:${TAG}"
+          docker build --platform linux/amd64 -f Dockerfile.local -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Record the tag in Git
+        run: |
+          sed -i "s/^imageTag: .*/imageTag: ${{ steps.tag.outputs.tag }}/" deploy/environments/team/image.yaml
+          git config user.name "build-image"
+          git config user.email "build-image@users.noreply.github.com"
+          git commit -am "Release image ${{ steps.tag.outputs.tag }}" && git push
