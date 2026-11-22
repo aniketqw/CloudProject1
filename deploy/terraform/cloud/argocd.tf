@@ -78,7 +78,7 @@ locals {
       }
     }
 
-    hpa       = { for k, v in { max = 4 } : k => v if local.demo }
+    hpa       = merge({ min = 2 }, { for k, v in { max = 4 } : k => v if local.demo })
     workloads = local.demo_workloads
   }
 
@@ -115,4 +115,24 @@ module "argocd" {
   }
 
   depends_on = [google_container_node_pool.apps]
+}
+
+# Destroy helper: while this resource is destroyed, a background script clears stuck Argo CD syncs so the
+# applications can be deleted without a manual step. It starts when the helper is destroyed (before the applications).
+resource "terraform_data" "argo_unstick" {
+  input = {
+    project = var.project_id
+    zone    = var.zone
+    cluster = google_container_cluster.gke.name
+    script  = abspath("${local.repo_root}/deploy/argo_unstick.sh")
+    log     = abspath("${local.repo_root}/.local-build/argo-unstick.log")
+  }
+
+  provisioner "local-exec" {
+    when        = destroy
+    interpreter = ["bash", "-c"]
+    command     = "mkdir -p \"$(dirname '${self.input.log}')\" && nohup '${self.input.script}' '${self.input.project}' '${self.input.zone}' '${self.input.cluster}' '${self.input.log}' >/dev/null 2>&1 &"
+  }
+
+  depends_on = [module.argocd]
 }

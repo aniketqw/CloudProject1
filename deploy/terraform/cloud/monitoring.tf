@@ -1,10 +1,24 @@
 # Google Cloud Monitoring: alerts and a dashboard for the managed services.
 # (The in-cluster Prometheus and Grafana stack is installed by Argo CD from deploy/charts/platform.)
 
+resource "google_monitoring_notification_channel" "email" {
+  count        = var.alert_email == "" ? 0 : 1
+  display_name = "${var.prefix} alert email"
+  type         = "email"
+
+  labels = {
+    email_address = var.alert_email
+  }
+}
+
+locals {
+  alert_channels = concat(var.alert_notification_channels, google_monitoring_notification_channel.email[*].id)
+}
+
 resource "google_monitoring_alert_policy" "sql_cpu" {
   display_name          = "${var.prefix}: Cloud SQL CPU above 80%"
   combiner              = "OR"
-  notification_channels = var.alert_notification_channels
+  notification_channels = local.alert_channels
 
   conditions {
     display_name = "Cloud SQL CPU utilization"
@@ -28,7 +42,7 @@ resource "google_monitoring_alert_policy" "sql_cpu" {
 resource "google_monitoring_alert_policy" "gke_node_cpu" {
   display_name          = "${var.prefix}: GKE node CPU above 85%"
   combiner              = "OR"
-  notification_channels = var.alert_notification_channels
+  notification_channels = local.alert_channels
 
   conditions {
     display_name = "GKE node CPU allocatable utilization"
@@ -52,7 +66,7 @@ resource "google_monitoring_alert_policy" "gke_node_cpu" {
 resource "google_monitoring_alert_policy" "notification_function_errors" {
   display_name          = "${var.prefix}: notification function returning errors"
   combiner              = "OR"
-  notification_channels = var.alert_notification_channels
+  notification_channels = local.alert_channels
 
   conditions {
     display_name = "Cloud Run 5xx responses for the notification function"

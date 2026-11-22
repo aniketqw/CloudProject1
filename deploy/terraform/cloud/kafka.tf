@@ -9,8 +9,6 @@ resource "confluent_kafka_topic" "application" {
   }
 
   lifecycle {
-    prevent_destroy = true
-
     precondition {
       condition     = var.kafka_cluster_id != "" && var.kafka_rest_endpoint != "" && var.kafka_admin_api_key != ""
       error_message = "enable_kafka is true but the Confluent cluster id, REST endpoint and admin API key are not set."
