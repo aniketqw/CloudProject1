@@ -1,7 +1,7 @@
 {{- if .Values.ingress.enabled }}
 apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
-metadata: {name: food-web, annotations: {argocd.argoproj.io/sync-wave: "10"}}
+metadata: {name: food-web, annotations: {argocd.argoproj.io/sync-wave: "10", argocd.argoproj.io/ignore-healthcheck: "true"}}
 spec:
   domains: [{{ .Values.host | quote }}]
 ---
@@ -24,6 +24,7 @@ metadata:
   name: food-web
   annotations:
     argocd.argoproj.io/sync-wave: "10" # last: the certificate takes up to an hour and must not hold back the services
+    argocd.argoproj.io/ignore-healthcheck: "true" # a Provisioning certificate must not block the PostSync Flink launch
     kubernetes.io/ingress.class: gce
     kubernetes.io/ingress.global-static-ip-name: {{ .Values.ingress.ipName | quote }}
     networking.gke.io/managed-certificates: food-web

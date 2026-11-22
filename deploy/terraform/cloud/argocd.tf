@@ -83,7 +83,10 @@ locals {
   }
 
   sync_policy = {
-    automated   = { prune = true, selfHeal = true }
+    automated = { prune = true, selfHeal = true }
+    # A fresh install fails its first syncs while the metrics and health checks warm up. The default retry limit (5) gave up
+    # and left the application stuck until someone cleared it by hand; keep retrying with a capped backoff instead.
+    retry       = { limit = 40, backoff = { duration = "20s", factor = 2, maxDuration = "3m" } }
     syncOptions = ["CreateNamespace=true", "ServerSideApply=true"]
   }
 }
