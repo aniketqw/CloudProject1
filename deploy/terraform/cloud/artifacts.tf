@@ -87,6 +87,8 @@ resource "terraform_data" "flink_jar" {
       cid="$(docker create ${docker_image.analytics[0].name})"
       trap 'docker rm -f "$cid" >/dev/null' EXIT
       docker cp "$cid:/opt/flink/usrlib/restaurant-analytics.jar" "$jar"
+      # Use the same credentials Terraform uses (application default); the interactive gcloud login can expire mid-apply.
+      export CLOUDSDK_AUTH_ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
       gcloud storage cp "$jar" "gs://${google_storage_bucket.artifacts.name}/${local.jar_name}" --project "${var.project_id}"
     EOT
   }
