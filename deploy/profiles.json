@@ -4,7 +4,7 @@
     "gke_nodes": 3,
     "gke_max_nodes": 3,
     "gke_disk_gb": 30,
-    "flink_machine": "e2-standard-2",
+    "flink_machine": "e2-standard-4",
     "flink_workers": 0,
     "flink_disk_gb": 30,
     "sql_tier": "db-g1-small",

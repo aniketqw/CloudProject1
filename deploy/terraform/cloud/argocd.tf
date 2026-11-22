@@ -94,6 +94,13 @@ locals {
 module "argocd" {
   source = "../modules/argocd"
 
+  # A Google-managed certificate stays Provisioning for up to an hour. Argo CD would wait for it before running the PostSync
+  # Flink launch, so it is reported Healthy and the real state is shown in the message.
+  argocd_cm_extra = {
+    "users.anonymous.enabled"                                             = var.argocd_anonymous_view ? "true" : "false"
+    "resource.customizations.health.networking.gke.io_ManagedCertificate" = "hs = {}\nhs.status = \"Healthy\"\nif obj.status ~= nil and obj.status.certificateStatus ~= nil then\n  hs.message = \"certificate: \" .. obj.status.certificateStatus\nend\nreturn hs"
+  }
+
   applications = {
     "food-platform" = {
       additionalAnnotations = { "argocd.argoproj.io/sync-wave" = "0" }

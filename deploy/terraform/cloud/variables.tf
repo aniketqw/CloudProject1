@@ -139,6 +139,12 @@ variable "alert_notification_channels" {
   description = "Existing Cloud Monitoring notification channel IDs to notify. Empty keeps alerts visible in the console only."
 }
 
+variable "argocd_anonymous_view" {
+  type        = bool
+  default     = false
+  description = "true lets anyone who can reach the Argo CD service (port-forward only, it is cluster-internal) view it read-only without logging in. For demos and screenshots; leave false otherwise."
+}
+
 variable "admin_cidrs" {
   type        = list(string)
   default     = []
