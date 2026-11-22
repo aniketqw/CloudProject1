@@ -1,6 +1,7 @@
 locals {
   secret_values = {
     "db-password" = random_password.database.result
+    "zk-auth"     = "food:${random_password.zookeeper.result}"
     "kafka"       = jsonencode({ api_key = var.kafka_api_key, api_secret = var.kafka_api_secret })
     "web-access"  = jsonencode({ username = var.operator_user, password_hash = var.operator_password_hash })
   }

@@ -71,10 +71,12 @@ locals {
       db    = google_secret_manager_secret.config["db-password"].secret_id
       kafka = google_secret_manager_secret.config["kafka"].secret_id
       web   = google_secret_manager_secret.config["web-access"].secret_id
+      zk    = google_secret_manager_secret.config["zk-auth"].secret_id
       versions = {
         db    = google_secret_manager_secret_version.config["db-password"].version
         kafka = google_secret_manager_secret_version.config["kafka"].version
         web   = google_secret_manager_secret_version.config["web-access"].version
+        zk    = google_secret_manager_secret_version.config["zk-auth"].version
       }
     }
 
