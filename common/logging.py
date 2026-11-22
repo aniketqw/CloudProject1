@@ -6,3 +6,6 @@ def event(service,name,**fields):
     record={"service":service,"event":name}
     record.update({k:v for k,v in fields.items() if k in allowed and isinstance(v,(str,int,float,bool,type(None)))})
     sys.stdout.write(json.dumps(record,separators=(",",":"))+"\n");sys.stdout.flush()
+
+# Build marker: changed to demonstrate build-on-push (source change -> image build -> tag commit -> Argo CD rollout).
+BUILD_MARKER = "bop-demo-1"
