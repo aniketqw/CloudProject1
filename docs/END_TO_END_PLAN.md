@@ -159,16 +159,16 @@ Do in this order; each row is Done, Skipped (with a reason), or Open.
 | ID | Item | Current state | Fix | Result |
 |---|---|---|---|---|
 | S2 | No redundancy for autoscaled services | One replica, HPA minimum 1; only ZooKeeper has a PodDisruptionBudget | Minimum 2 replicas, a PodDisruptionBudget per service, spread across nodes | 2026-11-22 DONE. HPA services run 2 replicas minimum with a PodDisruptionBudget (T-082). |
-| S3 | Web UI not stateless | SQLite file on a volume | Move state to SQL or Firestore |  2026-11-22 SKIPPED. Not started this pass. |
-| S1 | Plaintext internal gRPC and REST | `grpc.insecure_channel`; plain HTTP between services; network policy limits access | TLS or mTLS (cert-manager, or a mesh) |  2026-11-22 SKIPPED. Needs certificates or a mesh; not started. |
-| S4 | ZooKeeper polling and no ACLs | 0.25 s polling; no auth | Use watches; add auth and ACLs |  2026-11-22 SKIPPED. Not started. |
+| S3 | Web UI not stateless | SQLite file on a volume | Move state to SQL or Firestore | 2026-11-22 DONE (T-094): Web UI state in Cloud SQL. |
+| S1 | Plaintext internal gRPC and REST | `grpc.insecure_channel`; plain HTTP between services; network policy limits access | TLS or mTLS (cert-manager, or a mesh) | 2026-11-22 DONE for gRPC (T-101); internal REST stays plain HTTP behind the network policy. |
+| S4 | ZooKeeper polling and no ACLs | 0.25 s polling; no auth | Use watches; add auth and ACLs | 2026-11-22 DONE (T-088, T-100): digest ACLs and a children watch; TLS for ZooKeeper not done. |
 | S5 | Grafana and alerts | Anonymous viewer, login form off; no alert recipients | IAP or SSO if exposed; email channel in Terraform |  2026-11-22 SKIPPED. No notification channel yet (needs an address from the owner). |
-| S6 | Argo CD access | Port-forward and initial admin secret | SSO or IAP; rotate the admin password |  2026-11-22 SKIPPED. Not started. |
+| S6 | Argo CD access | Port-forward and initial admin secret | SSO or IAP; rotate the admin password | 2026-11-22 DONE (T-102): generated admin password, no initial secret. SSO not done. |
 | S7 | Flink sizing | 0 workers on the demo profile | At least one worker; savepoints on upgrade | 2026-11-22 DONE differently. The demo Dataproc master is larger (T-078); one worker is not allowed by Dataproc. |
-| S8 | Secrets in Terraform state | Private versioned bucket | Restrict readers; consider a customer-managed key; consider splitting the root into modules |  2026-11-22 SKIPPED. Not started. |
+| S8 | Secrets in Terraform state | Private versioned bucket | Restrict readers; consider a customer-managed key; consider splitting the root into modules | 2026-11-22 NOT DONE on purpose (T-105): a mistake would lock Terraform out of its own state. |
 | S9 | One-address cluster allow-list | One `/32` | A short list, or IAP | 2026-11-22 DONE. `admin_cidrs` allows extra addresses (T-082). |
-| S10 | Image supply chain | Immutable tags only | Digest pinning; vulnerability scanning | 2026-11-22 PARTIAL. Container scanning API enabled; digest pinning not done. |
-| S13 | Cost guard | None | A budget alert in Terraform (needs billing-admin rights) |  2026-11-22 SKIPPED. Needs billing-admin rights; not started. |
+| S10 | Image supply chain | Immutable tags only | Digest pinning; vulnerability scanning | 2026-11-22 DONE (T-103): images referenced by digest, recorded by the workflow; scanning API enabled. |
+| S13 | Cost guard | None | A budget alert in Terraform (needs billing-admin rights) | 2026-11-22 DONE (T-104): monthly budget with email alerts, opt-in by `billing_account_id`. |
 
 ## 6. Cleanup (P5)
 `docs/GAPS_AND_PLAN.md` N1 to N8 (typo in the dashboard title; stale `DESIGN.md` and `CLOUD_DEPLOYMENT_HANDOFF.md`; the wrong file named in `REQUIREMENTS_MAP.md`; duplicate dashboard JSON and k6 script; unused `deploy/build.py`, `delivery_assignment_service/Dockerfile` and committed generated protobuf files; leftover `.gitignore` entries; two small shims; trace ID collisions). Mark each Done or Skipped.
@@ -206,7 +206,7 @@ The per-requirement results, evidence paths and the open blockers are in `docs/r
 | P1 | PASS. 33 pods Running and Argo CD `food` and `food-platform` Synced and Healthy on the three-node profile with no hand edits (T-056, T-064; `docs/evidence/06-app-running/`). |
 | P2 | PARTIAL. B, C, E, F, G pass; D partial (build-on-push blocked: no admin on the tracked repository); H partial (alert email address set in `.env`, applied and tested at the next apply). |
 | P3 | PARTIAL. A3 and B6 pass, A4 accepted, D4 blocked. |
-| P4 | PARTIAL. Done: S2 (2 replicas and disruption budgets), S7 (larger Dataproc master), S9 (extra allowed addresses), S10 (scanning API enabled). Skipped with a reason: S1, S3, S4, S6, S8, S13 (see `docs/requirements/00-SUMMARY.md`). |
+| P4 | DONE except S8. S1, S2, S3, S4 (watches and access control), S6, S7, S9, S10, S13 done; S8 deliberately not done (T-105). |
 | P5 | PARTIAL. Done: N5 (unused `deploy/build.py` removed), N6 (stale ignore lines removed). N1 was not a defect. Not done: N2, N3 (original documents are not edited), N4 (the duplicates are used by the local compose files), N7, N8. |
 | P6 | PARTIAL. Final destroy done twice (T-074, T-086); a clean rebuild from empty with zero manual steps was not repeated. |
 
