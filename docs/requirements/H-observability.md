@@ -16,7 +16,7 @@ Port-forward Grafana (`monitoring`, service `food-platform-grafana`) and Prometh
 `docs/evidence/11-observability/`, `13-logs/`, `14-screenshots/grafana-*.png`, `15-cloud-monitoring/`.
 
 ## 6. Result
-PARTIAL, 2026-11-22. Grafana dashboard screenshots with real traffic (idle and under load), Prometheus targets up, the log queries run (application, Dataproc, Flink containers, function), three alert policies enabled. The email notification channel is written in Terraform (`alert_email`) but no address was provided, so no email was sent.
+PARTIAL, 2026-11-22. Grafana dashboard screenshots with real traffic (idle and under load), Prometheus targets up, the log queries run (application, Dataproc, Flink containers, function), three alert policies enabled. The email notification channel (`alert_email`) works: a lowered threshold opened three alerts and the email arrived (confirmed by the owner).
 
 ## 7. Open
 The address is set in `.env`; apply once more and trigger an alert to see the email (not run).
