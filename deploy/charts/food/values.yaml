@@ -334,11 +334,11 @@
   },
   "loadTest": {
     "enabled": true,
-    "runId": "demo-run-3",
+    "runId": "demo-run-4",
     "env": {
-      "VUS": "40",
+      "VUS": "20",
       "RAMP": "1m",
-      "HOLD": "5m",
+      "HOLD": "4m",
       "PAUSE": "0.1"
     }
   },
