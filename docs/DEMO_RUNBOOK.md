@@ -50,7 +50,7 @@ Port-forward once: `kubectl -n food port-forward svc/customer-service 8083:8083 
 | D-2 | `kubectl -n argocd get applications` | both Synced Healthy | same, in text | same files; sync settings in `argocd.tf` (`local.sync_policy`: automated, prune, selfHeal, retry) | [run] |
 | D-3 | edit a chart value, push, `kubectl -n argocd get application food -w` | OutOfSync, then Synced | updates flow from Git | `deploy/charts/food/` is what Argo CD renders; branch from `git_revision` variable | [run] |
 | D-4 | `kubectl -n food scale deploy web-ui --replicas=3; sleep 10; kubectl -n food get deploy web-ui` | back to 1 replica | self-heal | `argocd.tf` `sync_policy.automated.selfHeal = true` | [run] |
-| D-5 | change application source, push; the workflow builds, tags, commits `imageTag`; Argo rolls it out | new pods with the new tag | build-on-push | `.github/workflows/build-image.yml`, Google side `deploy/terraform/cloud/cicd.tf`, release tag `deploy/environments/team/image.yaml` | [to run] after the fork work |
+| D-5 | change application source, push; the workflow builds, tags, commits `imageTag`; Argo rolls it out | new pods with the new tag | build-on-push | `.github/workflows/build-image.yml`, Google side `deploy/terraform/cloud/cicd.tf`, release tag `deploy/environments/team/image.yaml` | [run] `evidence/19-build-on-push/` |
 | D-6 | `grep -rn "kubectl apply" deploy/ \| wc -l` | 0 | no kubectl apply in the deploy path | deployment path = `deploy/terraform/` and `deploy/charts/`; no `kubectl apply` in them | [run] |
 
 ## E. Flink
