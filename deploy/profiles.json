@@ -29,7 +29,8 @@
         "memory": "128Mi"
       }
     },
-    "kafka_retention_days": 21
+    "kafka_retention_days": 21,
+    "kafka_machine": "e2-medium"
   },
   "standard": {
     "gke_machine": "e2-standard-4",
@@ -61,6 +62,7 @@
         "memory": "256Mi"
       }
     },
-    "kafka_retention_days": 21
+    "kafka_retention_days": 21,
+    "kafka_machine": "e2-standard-2"
   }
 }

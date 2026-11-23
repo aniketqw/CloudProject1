@@ -41,7 +41,7 @@ locals {
       DEPLOYMENT_ZONE              = var.zone
       CLOUD_LIFECYCLE_PROTOCOL     = "1"
       PROJECT_ID                   = var.project_id
-      KAFKA_BOOTSTRAP_SERVERS      = var.kafka_bootstrap
+      KAFKA_BOOTSTRAP_SERVERS      = "${google_compute_address.kafka.address}:9092"
       WEB_UI_DB                    = "mysql" # Web UI sessions and carts live in Cloud SQL, not on a pod disk
       NOTIFICATION_RECEIPTS_BUCKET = google_storage_bucket.receipts.name
       NOTIFICATION_DISPATCH_TOPIC  = google_pubsub_topic.dispatch.name

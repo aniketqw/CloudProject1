@@ -1,0 +1,40 @@
+#!/bin/bash
+# Apache Kafka (KRaft, one broker) in Docker on this VM. Runs at every boot; safe to run again.
+set -eux
+if ! command -v docker >/dev/null; then
+  apt-get update
+  apt-get install -y docker.io jq
+fi
+mkdir -p /opt/kafka/data /opt/kafka/secrets
+chmod 700 /opt/kafka/secrets
+gcloud secrets versions access latest --secret='${broker_secret}' --project='${project}' > /opt/kafka/secrets/broker.json
+jq -r .key  /opt/kafka/secrets/broker.json  > /opt/kafka/secrets/server.key
+jq -r .cert /opt/kafka/secrets/broker.json  > /opt/kafka/secrets/server.crt
+cat /opt/kafka/secrets/server.key /opt/kafka/secrets/server.crt > /opt/kafka/secrets/server.pem
+PASS="$(jq -r .password /opt/kafka/secrets/broker.json)"
+chown -R 1000:1000 /opt/kafka/data /opt/kafka/secrets
+docker rm -f kafka >/dev/null 2>&1 || true
+docker run -d --name kafka --restart unless-stopped -p 9092:9092 \
+  -v /opt/kafka/secrets/server.pem:/etc/kafka/secrets/server.pem:ro \
+  -v /opt/kafka/data:/var/lib/kafka/data \
+  -e KAFKA_NODE_ID=1 -e KAFKA_PROCESS_ROLES=broker,controller \
+  -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+  -e KAFKA_LISTENERS=CLIENT://:9092,CONTROLLER://localhost:9093,LOCAL://localhost:9094 \
+  -e KAFKA_ADVERTISED_LISTENERS=CLIENT://${ip}:9092,LOCAL://localhost:9094 \
+  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:SASL_SSL,CONTROLLER:PLAINTEXT,LOCAL:PLAINTEXT \
+  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER -e KAFKA_INTER_BROKER_LISTENER_NAME=LOCAL \
+  -e KAFKA_SASL_ENABLED_MECHANISMS=PLAIN \
+  -e "KAFKA_LISTENER_NAME_CLIENT_PLAIN_SASL_JAAS_CONFIG=org.apache.kafka.common.security.plain.PlainLoginModule required user_food=\"$PASS\";" \
+  -e KAFKA_SSL_KEYSTORE_TYPE=PEM -e KAFKA_SSL_KEYSTORE_LOCATION=/etc/kafka/secrets/server.pem -e KAFKA_SSL_CLIENT_AUTH=none \
+  -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+  -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=false \
+  apache/kafka:3.9.0
+# The loopback-only LOCAL listener is for this script; wait for it, then create the topics (no-op when they exist).
+for i in $(seq 1 60); do
+  docker exec kafka /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9094 >/dev/null 2>&1 && break
+  sleep 3
+done
+for topic in ${topics}; do
+  docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9094 --create --if-not-exists \
+    --topic "$topic" --partitions 3 --config retention.ms=${retention_ms}
+done
