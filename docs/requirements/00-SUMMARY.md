@@ -6,7 +6,7 @@
 | B | PASS | `07-order-flow/` | REST, gRPC, Kafka, Pub/Sub, function, receipt, HTTPS name. |
 | C | PASS | `08-hpa-load/`, `17-load-tuning/`, `14-screenshots/`, `15-cloud-monitoring/` | Scale-out and in; k6 thresholds passed with 20 users; Web UI stateless in Cloud SQL (T-094). |
 | D | PASS | `10-gitops/`, `14-screenshots/`, `19-build-on-push/` | Sync, self-heal, UI, and build-on-push on the owner's fork. |
-| E | PASS | `16-flink-results/`, `13-logs/`, `20-flink-and-console/` | Results in Firestore; duplicates and invalid events ignored; Flink dashboard captured. |
+| E | PASS (Kafka is now Apache Kafka on a VM, T-109) | `16-flink-results/`, `13-logs/`, `20-flink-and-console/` | Results in Firestore; duplicates and invalid events ignored; Flink dashboard captured. |
 | F | PASS | `09-failover/`, `18-zookeeper-acl/` | Failover, worker deletion, quorum loss, access control, watches (T-100; the watch change tested on a real ZooKeeper container, not re-run on the cloud). |
 | G | PASS | `07-order-flow/`, `16-flink-results/` | SQL, Firestore, Cloud Storage. |
 | H | PASS | `11-observability/`, `13-logs/`, `14-screenshots/`, `21-alert-email/` | Dashboards with real traffic, log queries, alerts, and the alert email arrived. |
