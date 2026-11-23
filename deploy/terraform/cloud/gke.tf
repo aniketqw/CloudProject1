@@ -1,4 +1,5 @@
 resource "google_container_cluster" "gke" {
+  depends_on = [terraform_data.pvc_disk_cleanup]
   name                     = "${var.prefix}-gke"
   location                 = var.zone
   network                  = google_compute_network.vpc.id
