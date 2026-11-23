@@ -23,4 +23,4 @@ Terraform was generated as JSON by Python and applied by a Python wrapper in fiv
 PARTIAL, 2026-11-22. One apply builds everything (108 resources, no errors, four times from the post-teardown state); a plan after it shows No changes. Teardown is two documented commands (about 15 minutes) and repeatable (T-086, T-093, T-098). The platform now starts without hand syncs (about 19 minutes to a running Flink job, T-096) after the fixes in T-090 and T-095. The existing Confluent cluster is accepted as the Kafka provider. Pause is a Terraform variable. Not proven: a run from a completely empty project (the VPC, APIs and state bucket survive a teardown).
 
 ## 7. Open
-A rebuild from an empty project with zero manual steps.
+The Argo CD Helm release sometimes fails to uninstall on destroy; the fallback is to remove the two Helm releases from Terraform state and run the destroy again (`destroy-rest.sh`, T-111). A rebuild from an empty project with zero manual steps.
