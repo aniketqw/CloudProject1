@@ -103,6 +103,12 @@ resource "google_compute_instance" "kafka" {
     retention_ms  = var.kafka_retention_days * 86400000
   })
 
+  # Kafka's PEM keystore needs a PKCS8 key (private_key_pem_pkcs8; the default ECDSA PEM is the older SEC1 format).
+  # A new secret version restarts the VM so the start-up script loads it.
+  metadata = {
+    broker-secret-version = google_secret_manager_secret_version.config["kafka-broker"].version
+  }
+
   allow_stopping_for_update = true
 
   depends_on = [

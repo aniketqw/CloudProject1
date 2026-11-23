@@ -1,6 +1,8 @@
 #!/bin/bash
 # Apache Kafka (KRaft, one broker) in Docker on this VM. Runs at every boot; safe to run again.
 set -eux
+# On any failure show the broker's own log in the serial console (gcloud compute instances get-serial-port-output).
+trap 'docker logs kafka 2>&1 | tail -60 | sed "s/^/KAFKA-LOG: /" > /dev/console || true' ERR
 if ! command -v docker >/dev/null; then
   apt-get update
   apt-get install -y docker.io jq
@@ -14,7 +16,7 @@ cat /opt/kafka/secrets/server.key /opt/kafka/secrets/server.crt > /opt/kafka/sec
 PASS="$(jq -r .password /opt/kafka/secrets/broker.json)"
 chown -R 1000:1000 /opt/kafka/data /opt/kafka/secrets
 docker rm -f kafka >/dev/null 2>&1 || true
-docker run -d --name kafka --restart unless-stopped -p 9092:9092 \
+docker run -d --name kafka --restart unless-stopped --log-driver=gcplogs -p 9092:9092 \
   -v /opt/kafka/secrets/server.pem:/etc/kafka/secrets/server.pem:ro \
   -v /opt/kafka/data:/var/lib/kafka/data \
   -e KAFKA_NODE_ID=1 -e KAFKA_PROCESS_ROLES=broker,controller \
