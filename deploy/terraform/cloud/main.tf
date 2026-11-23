@@ -5,7 +5,7 @@ locals {
     "argocd-admin" = random_password.argocd_admin.result
     "grpc-tls"     = jsonencode({ ca = tls_self_signed_cert.grpc_ca.cert_pem, cert = tls_locally_signed_cert.grpc_server.cert_pem, key = tls_private_key.grpc_server.private_key_pem })
     "kafka"        = jsonencode({ api_key = "food", api_secret = random_password.kafka_sasl.result, ca = tls_self_signed_cert.grpc_ca.cert_pem })
-    "kafka-broker" = jsonencode({ key = tls_private_key.kafka_server.private_key_pem, cert = tls_locally_signed_cert.kafka_server.cert_pem, password = random_password.kafka_sasl.result })
+    "kafka-broker" = jsonencode({ key = tls_private_key.kafka_server.private_key_pem_pkcs8, cert = tls_locally_signed_cert.kafka_server.cert_pem, password = random_password.kafka_sasl.result })
     "web-access"   = jsonencode({ username = var.operator_user, password_hash = var.operator_password_hash })
   }
   profiles = jsondecode(file("${path.module}/../../profiles.json"))
