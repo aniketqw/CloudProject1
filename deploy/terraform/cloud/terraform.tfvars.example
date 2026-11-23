@@ -1,10 +1,6 @@
 # Copy to terraform.tfvars (git-ignored) and fill in. Real secrets do NOT go in this file:
 # set them as environment variables instead, so they never touch disk or git:
 #
-#   export TF_VAR_kafka_api_key=...            # Confluent key the applications use
-#   export TF_VAR_kafka_api_secret=...
-#   export TF_VAR_kafka_admin_api_key=...      # Confluent topic-administrator key
-#   export TF_VAR_kafka_admin_api_secret=...
 #   export TF_VAR_operator_password_hash="$(python3 -c 'from werkzeug.security import generate_password_hash as g; import getpass; print(g(getpass.getpass("Operator passphrase (16+ chars): ")))')"
 
 project_id      = "your-project-id"
@@ -17,9 +13,6 @@ admin_cidr      = "203.0.113.10/32" # your public IP, allowed to reach the GKE A
 operator_user   = "operator"
 compute_profile = "demo"
 
-kafka_bootstrap     = "pkc-xxxxx.asia-south1.gcp.confluent.cloud:9092"
-kafka_cluster_id    = "lkc-xxxxx"
-kafka_rest_endpoint = "https://pkc-xxxxx.asia-south1.gcp.confluent.cloud:443"
 
 git_repository = "https://github.com/OWNER/REPO.git"
 git_revision   = "iac-integration"

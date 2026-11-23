@@ -46,3 +46,15 @@ class KafkaConfigurationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BrokerCertificateAuthority(unittest.TestCase):
+    ENV = {"KAFKA_BOOTSTRAP_SERVERS": "10.40.0.9:9092", "KAFKA_SECURITY_PROTOCOL": "SASL_SSL",
+           "KAFKA_API_KEY": "food", "KAFKA_API_SECRET": "secret"}
+
+    def test_ca_is_passed_to_the_client_when_present(self):
+        config = kafka_config("t", {**self.ENV, "KAFKA_SSL_CA": "-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----\n"})
+        self.assertIn("BEGIN CERTIFICATE", config["ssl.ca.pem"])
+
+    def test_without_a_ca_the_default_trust_store_is_used(self):
+        self.assertNotIn("ssl.ca.pem", kafka_config("t", self.ENV))

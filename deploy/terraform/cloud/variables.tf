@@ -14,11 +14,6 @@ variable "prefix" {
   type = string
 }
 
-variable "kafka_bootstrap" {
-  type    = string
-  default = ""
-}
-
 variable "public_host" {
   type        = string
   default     = ""
@@ -38,18 +33,6 @@ variable "dns_zone" {
 
 variable "admin_cidr" {
   type = string
-}
-
-variable "kafka_api_key" {
-  type      = string
-  default   = ""
-  sensitive = true
-}
-
-variable "kafka_api_secret" {
-  type      = string
-  default   = ""
-  sensitive = true
 }
 
 variable "operator_user" {
@@ -76,36 +59,7 @@ variable "compute_profile" {
   }
 }
 
-# -- Kafka topics (formerly the separate kafka root)
-variable "enable_kafka" {
-  type        = bool
-  default     = true
-  description = "Create the Kafka topics. Set false until a Confluent cluster exists; the services that need Kafka will not work without it."
-}
-
-variable "kafka_cluster_id" {
-  type    = string
-  default = ""
-}
-
-variable "kafka_rest_endpoint" {
-  type    = string
-  default = ""
-}
-
-variable "kafka_admin_api_key" {
-  type        = string
-  default     = ""
-  sensitive   = true
-  description = "Confluent topic-administrator key. Different from kafka_api_key, which the applications use."
-}
-
-variable "kafka_admin_api_secret" {
-  type      = string
-  default   = ""
-  sensitive = true
-}
-
+# -- Kafka (Apache Kafka on a Compute Engine VM, see kafka_vm.tf)
 variable "kafka_retention_days" {
   type    = number
   default = 21

@@ -4,7 +4,8 @@ locals {
     "zk-auth"      = "food:${random_password.zookeeper.result}"
     "argocd-admin" = random_password.argocd_admin.result
     "grpc-tls"     = jsonencode({ ca = tls_self_signed_cert.grpc_ca.cert_pem, cert = tls_locally_signed_cert.grpc_server.cert_pem, key = tls_private_key.grpc_server.private_key_pem })
-    "kafka"        = jsonencode({ api_key = var.kafka_api_key, api_secret = var.kafka_api_secret })
+    "kafka"        = jsonencode({ api_key = "food", api_secret = random_password.kafka_sasl.result, ca = tls_self_signed_cert.grpc_ca.cert_pem })
+    "kafka-broker" = jsonencode({ key = tls_private_key.kafka_server.private_key_pem, cert = tls_locally_signed_cert.kafka_server.cert_pem, password = random_password.kafka_sasl.result })
     "web-access"   = jsonencode({ username = var.operator_user, password_hash = var.operator_password_hash })
   }
   profiles = jsondecode(file("${path.module}/../../profiles.json"))
@@ -47,16 +48,7 @@ resource "google_project_service" "apis" {
   disable_on_destroy = false
 }
 
-# ----------------------------------------------- providers for Kafka and GitOps
-# All four settings are given together or not at all; with enable_kafka = false the provider stays unconfigured.
-provider "confluent" {
-  cloud_api_key       = var.confluent_cloud_api_key != "" ? var.confluent_cloud_api_key : null
-  cloud_api_secret    = var.confluent_cloud_api_secret != "" ? var.confluent_cloud_api_secret : null
-  kafka_id            = var.enable_kafka ? var.kafka_cluster_id : null
-  kafka_rest_endpoint = var.enable_kafka ? var.kafka_rest_endpoint : null
-  kafka_api_key       = var.enable_kafka ? var.kafka_admin_api_key : null
-  kafka_api_secret    = var.enable_kafka ? var.kafka_admin_api_secret : null
-}
+# ----------------------------------------------- providers for GitOps
 
 data "google_client_config" "default" {}
 

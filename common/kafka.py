@@ -22,6 +22,9 @@ def kafka_config(client_id, environ=None):
         if not key or not secret:
             raise ValueError("SASL_SSL requires KAFKA_API_KEY and KAFKA_API_SECRET.")
         config.update({"sasl.mechanisms": "PLAIN", "sasl.username": key, "sasl.password": secret})
+        ca = env.get("KAFKA_SSL_CA", "").strip()
+        if ca:  # a broker whose certificate is signed by our own CA (Apache Kafka on a VM); Confluent needs no CA here
+            config["ssl.ca.pem"] = ca
     else:
         raise ValueError("KAFKA_SECURITY_PROTOCOL must be SASL_SSL or PLAINTEXT.")
     return config

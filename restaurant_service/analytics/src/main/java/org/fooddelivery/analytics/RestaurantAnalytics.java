@@ -106,6 +106,7 @@ public final class RestaurantAnalytics {
    String user=secret.get("api_key").getAsString(),password=secret.get("api_secret").getAsString();
    if(!user.matches("[A-Za-z0-9_-]+")||!password.matches("[A-Za-z0-9+/=_-]+"))throw new IllegalArgumentException("Credential encoding unsupported");
    p.setProperty("security.protocol","SASL_SSL");p.setProperty("sasl.mechanism","PLAIN");
+   if(secret.has("ca")&&!secret.get("ca").getAsString().isBlank()){p.setProperty("ssl.truststore.type","PEM");p.setProperty("ssl.truststore.certificates",secret.get("ca").getAsString());}
    p.setProperty("sasl.jaas.config","org.apache.kafka.common.security.plain.PlainLoginModule required username=\""+user+"\" password=\""+password+"\";");
   }return p;
  }
